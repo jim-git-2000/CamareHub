@@ -112,3 +112,31 @@ class ItemListResponse(SQLModel):
     page: int
     page_size: int
     total: int
+
+
+class TransactionBase(SQLModel):
+    type: str
+    amount: float | None = None
+    currency: str = "CNY"
+    date: Date | None = None
+    vendor: str | None = None
+    notes: str | None = None
+
+
+class TransactionCreate(TransactionBase):
+    pass
+
+
+class TransactionUpdate(SQLModel):
+    type: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    date: Date | None = None
+    vendor: str | None = None
+    notes: str | None = None
+
+
+class TransactionRead(TransactionBase):
+    id: int
+    item_id: int
+    created_at: datetime

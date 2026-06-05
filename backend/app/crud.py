@@ -5,10 +5,21 @@ from sqlmodel import Session, select
 
 from app.database import PROJECT_ROOT
 from app.models import Camera, Film, Item, Lens, Photo, Transaction, utc_now
-from app.schemas import CameraBase, FilmBase, ItemCreate, ItemRead, ItemUpdate, LensBase
+from app.schemas import (
+    CameraBase,
+    FilmBase,
+    ItemCreate,
+    ItemRead,
+    ItemUpdate,
+    LensBase,
+    TransactionCreate,
+    TransactionRead,
+    TransactionUpdate,
+)
 
 
 VALID_ITEM_TYPES = {"camera", "lens", "film", "accessory"}
+VALID_TRANSACTION_TYPES = {"purchase", "repair", "sale", "maintenance", "accessory"}
 VALID_SORTS = {
     "created_at": Item.created_at,
     "-created_at": Item.created_at.desc(),
@@ -26,6 +37,11 @@ VALID_SORTS = {
 def _validate_item_type(item_type: str) -> None:
     if item_type not in VALID_ITEM_TYPES:
         raise ValueError(f"Unsupported item type: {item_type}")
+
+
+def _validate_transaction_type(transaction_type: str) -> None:
+    if transaction_type not in VALID_TRANSACTION_TYPES:
+        raise ValueError(f"Unsupported transaction type: {transaction_type}")
 
 
 def _item_fields(payload: ItemCreate | ItemUpdate) -> dict:
@@ -200,5 +216,69 @@ def delete_item(session: Session, item_id: int) -> bool:
     session.exec(delete(Photo).where(Photo.item_id == item_id))
     session.exec(delete(Transaction).where(Transaction.item_id == item_id))
     session.delete(item)
+    session.commit()
+    return True
+
+
+def create_transaction(
+    session: Session,
+    item_id: int,
+    payload: TransactionCreate,
+) -> TransactionRead | None:
+    item = session.get(Item, item_id)
+    if item is None:
+        return None
+
+    _validate_transaction_type(payload.type)
+    transaction = Transaction(item_id=item_id, **payload.model_dump())
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return TransactionRead.model_validate(transaction)
+
+
+def list_transactions(session: Session, item_id: int) -> list[TransactionRead] | None:
+    item = session.get(Item, item_id)
+    if item is None:
+        return None
+
+    statement = (
+        select(Transaction)
+        .where(Transaction.item_id == item_id)
+        .order_by(Transaction.created_at.desc())
+    )
+    transactions = session.exec(statement).all()
+    return [TransactionRead.model_validate(transaction) for transaction in transactions]
+
+
+def update_transaction(
+    session: Session,
+    transaction_id: int,
+    payload: TransactionUpdate,
+) -> TransactionRead | None:
+    transaction = session.get(Transaction, transaction_id)
+    if transaction is None:
+        return None
+
+    data = payload.model_dump(exclude_unset=True)
+    transaction_type = data.get("type")
+    if transaction_type is not None:
+        _validate_transaction_type(transaction_type)
+
+    for key, value in data.items():
+        setattr(transaction, key, value)
+
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return TransactionRead.model_validate(transaction)
+
+
+def delete_transaction(session: Session, transaction_id: int) -> bool:
+    transaction = session.get(Transaction, transaction_id)
+    if transaction is None:
+        return False
+
+    session.delete(transaction)
     session.commit()
     return True
