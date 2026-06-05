@@ -44,7 +44,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit & { timeout
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), init?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-  if (init?.body && !headers.has("Content-Type")) {
+  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -123,6 +123,20 @@ export function deleteItem(itemId: number): Promise<void> {
 
 export function listItemPhotos(itemId: number): Promise<PhotoRead[]> {
   return apiRequest<PhotoRead[]>(`/api/items/${itemId}/photos`);
+}
+
+export function uploadItemPhoto(itemId: number, file: File): Promise<PhotoRead> {
+  const formData = new FormData();
+  formData.set("file", file);
+
+  return apiRequest<PhotoRead>(`/api/items/${itemId}/photos`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+export function deletePhoto(photoId: number): Promise<void> {
+  return apiRequest<void>(`/api/photos/${photoId}`, { method: "DELETE" });
 }
 
 export function listItemTransactions(itemId: number): Promise<TransactionRead[]> {

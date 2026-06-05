@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, ImageIcon, Loader2, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Edit, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,16 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { API_BASE_URL, ApiError, deleteItem, getItem, listItemPhotos, listItemTransactions } from "@/lib/api";
+import {
+  API_BASE_URL,
+  ApiError,
+  deleteItem,
+  deletePhoto,
+  getItem,
+  listItemPhotos,
+  listItemTransactions,
+  uploadItemPhoto
+} from "@/lib/api";
 import type { ItemRead, PhotoRead, TransactionRead } from "@/types";
 
 type DetailState =
@@ -34,6 +43,8 @@ const transactionGroups = [
   { key: "repair", title: "维修记录", types: ["repair", "maintenance", "service"] },
   { key: "sale", title: "出售记录", types: ["sale", "sell", "sold"] }
 ];
+const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
+const maxPhotoSizeBytes = 10 * 1024 * 1024;
 
 function typeLabel(type: string): string {
   const labels: Record<string, string> = {
@@ -95,6 +106,14 @@ function formatDate(value: string | null | undefined): string {
 
 function photoSrc(photo: PhotoRead): string {
   return photo.url.startsWith("http") ? photo.url : `${API_BASE_URL}${photo.url}`;
+}
+
+function formatFileSize(bytes: number | null | undefined): string {
+  if (!bytes) {
+    return "未知大小";
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function baseRows(item: ItemRead): DetailRow[] {
@@ -232,6 +251,11 @@ export default function ItemDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoToDelete, setPhotoToDelete] = useState<PhotoRead | null>(null);
+  const [deletingPhoto, setDeletingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -292,6 +316,61 @@ export default function ItemDetailPage() {
       setDeleteError(error instanceof Error ? error.message : "删除失败");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const refreshPhotos = async () => {
+    const photos = await listItemPhotos(itemId);
+    setState((current) => (current.status === "ready" ? { ...current, photos } : current));
+  };
+
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!allowedPhotoTypes.includes(file.type)) {
+      setPhotoError("仅支持 jpg、jpeg、png、webp 图片。");
+      return;
+    }
+
+    if (file.size > maxPhotoSizeBytes) {
+      setPhotoError("单张图片最大 10MB。");
+      return;
+    }
+
+    setUploading(true);
+    setPhotoError(null);
+
+    try {
+      await uploadItemPhoto(itemId, file);
+      await refreshPhotos();
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "图片上传失败");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!photoToDelete) {
+      return;
+    }
+
+    setDeletingPhoto(true);
+    setPhotoError(null);
+
+    try {
+      await deletePhoto(photoToDelete.id);
+      setPhotoToDelete(null);
+      await refreshPhotos();
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "图片删除失败");
+    } finally {
+      setDeletingPhoto(false);
     }
   };
 
@@ -391,10 +470,28 @@ export default function ItemDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">图片列表</CardTitle>
-          <CardDescription>已上传图片</CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-base">图片列表</CardTitle>
+              <CardDescription>支持 jpg、jpeg、png、webp，单张最大 10MB</CardDescription>
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+                {uploading ? "上传中..." : "上传图片"}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {photoError ? <div className="mb-4 rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">{photoError}</div> : null}
           {photos.length === 0 ? (
             <div className="flex min-h-36 flex-col items-center justify-center rounded-md border border-dashed text-center text-sm text-muted-foreground">
               <ImageIcon className="mb-2 h-7 w-7" aria-hidden="true" />
@@ -403,15 +500,24 @@ export default function ItemDetailPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {photos.map((photo) => (
-                <a
-                  key={photo.id}
-                  href={photoSrc(photo)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group overflow-hidden rounded-md border"
-                >
-                  <img src={photoSrc(photo)} alt={photo.file_name} className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90" />
-                </a>
+                <div key={photo.id} className="overflow-hidden rounded-md border">
+                  <a href={photoSrc(photo)} target="_blank" rel="noreferrer" className="group block">
+                    <img
+                      src={photoSrc(photo)}
+                      alt={photo.file_name}
+                      className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90"
+                    />
+                  </a>
+                  <div className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">{photo.file_name}</div>
+                      <div className="text-xs text-muted-foreground">{formatFileSize(photo.file_size)}</div>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPhotoToDelete(photo)}>
+                      删除
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -457,6 +563,25 @@ export default function ItemDetailPage() {
             </Button>
             <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? "删除中..." : "确认删除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={photoToDelete !== null} onOpenChange={(open) => !open && setPhotoToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除图片</DialogTitle>
+            <DialogDescription>
+              将删除图片 {photoToDelete?.file_name || ""}。此操作会删除图片记录和实际文件。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPhotoToDelete(null)} disabled={deletingPhoto}>
+              取消
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDeletePhoto} disabled={deletingPhoto}>
+              {deletingPhoto ? "删除中..." : "确认删除"}
             </Button>
           </DialogFooter>
         </DialogContent>
