@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Aperture, Camera, Film, ImageIcon, Package, Search, X } from "lucide-react";
+import { Aperture, Camera, Film, ImageIcon, Package, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -341,9 +341,17 @@ export default function ItemsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-normal">Items</h1>
-        <p className="mt-1 text-sm text-muted-foreground">器材列表</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-normal">Items</h1>
+          <p className="mt-1 text-sm text-muted-foreground">器材列表</p>
+        </div>
+        <Button asChild>
+          <Link href="/items/new">
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+            新增器材
+          </Link>
+        </Button>
       </div>
 
       <div className="rounded-lg border bg-background p-4">

@@ -1,5 +1,17 @@
-import { PlaceholderPage } from "@/components/placeholder-page";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ItemForm } from "@/components/item-form";
+import { createItem } from "@/lib/api";
+import type { ItemMutationPayload } from "@/types";
 
 export default function NewItemPage() {
-  return <PlaceholderPage title="New item" description="Create item placeholder." />;
+  const router = useRouter();
+
+  const handleSubmit = async (payload: ItemMutationPayload) => {
+    const item = await createItem(payload);
+    router.push(`/items/${item.id}`);
+  };
+
+  return <ItemForm mode="create" onSubmit={handleSubmit} />;
 }

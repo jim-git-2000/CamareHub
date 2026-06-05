@@ -1,4 +1,13 @@
-import type { ApiErrorResponse, HealthResponse, ItemListResponse, ItemRead, PhotoRead, StatsSummary, TransactionRead } from "@/types";
+import type {
+  ApiErrorResponse,
+  HealthResponse,
+  ItemListResponse,
+  ItemMutationPayload,
+  ItemRead,
+  PhotoRead,
+  StatsSummary,
+  TransactionRead
+} from "@/types";
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -92,6 +101,20 @@ export function listItems(params: ListItemsParams = {}): Promise<ItemListRespons
 
 export function getItem(itemId: number): Promise<ItemRead> {
   return apiRequest<ItemRead>(`/api/items/${itemId}`);
+}
+
+export function createItem(payload: ItemMutationPayload): Promise<ItemRead> {
+  return apiRequest<ItemRead>("/api/items", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateItem(itemId: number, payload: ItemMutationPayload): Promise<ItemRead> {
+  return apiRequest<ItemRead>(`/api/items/${itemId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function deleteItem(itemId: number): Promise<void> {

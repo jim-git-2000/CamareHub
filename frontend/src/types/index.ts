@@ -78,6 +78,62 @@ export type ItemRead = {
   film?: FilmRead | null;
 };
 
+export type CameraPayload = {
+  mount?: string | null;
+  format?: string | null;
+  camera_type?: string | null;
+  film_format?: string | null;
+  sensor_type?: string | null;
+  megapixels?: number | null;
+  shutter_type?: string | null;
+  metering?: string | null;
+  battery_type?: string | null;
+  weight_g?: number | null;
+};
+
+export type LensPayload = {
+  mount?: string | null;
+  focal_length_min?: number | null;
+  focal_length_max?: number | null;
+  aperture_max?: number | null;
+  aperture_min?: number | null;
+  filter_size_mm?: number | null;
+  minimum_focus_m?: number | null;
+  stabilization?: boolean | null;
+  autofocus?: boolean | null;
+  weight_g?: number | null;
+};
+
+export type FilmPayload = {
+  iso?: number | null;
+  film_format?: string | null;
+  color_type?: string | null;
+  process?: string | null;
+  expiry_date?: string | null;
+  quantity?: number | null;
+  storage_location?: string | null;
+};
+
+export type ItemMutationPayload = {
+  type: string;
+  brand: string;
+  model: string;
+  nickname?: string | null;
+  serial_number?: string | null;
+  status?: string | null;
+  purchase_date?: string | null;
+  purchase_price?: number | null;
+  current_value?: number | null;
+  currency?: string | null;
+  condition?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  custom_fields?: string | null;
+  camera?: CameraPayload | null;
+  lens?: LensPayload | null;
+  film?: FilmPayload | null;
+};
+
 export type ItemListResponse = {
   items: ItemRead[];
   page: number;
