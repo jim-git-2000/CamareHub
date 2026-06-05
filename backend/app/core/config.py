@@ -20,7 +20,10 @@ class Settings:
 
     def __post_init__(self) -> None:
         if self.cors_origins is None:
-            origins = os.getenv("BACKEND_CORS_ORIGINS", "http://localhost:3000")
+            origins = os.getenv(
+                "BACKEND_CORS_ORIGINS",
+                "http://localhost:3010,http://127.0.0.1:3010,http://192.168.32.123:3010",
+            )
             object.__setattr__(self, "cors_origins", _parse_cors_origins(origins))
 
 

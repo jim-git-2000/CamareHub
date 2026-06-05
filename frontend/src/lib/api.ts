@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, HealthResponse } from "@/types";
+import type { ApiErrorResponse, HealthResponse, ItemListResponse, StatsSummary } from "@/types";
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -60,4 +60,36 @@ export async function apiRequest<T>(path: string, init?: RequestInit & { timeout
 
 export function getHealth(): Promise<HealthResponse> {
   return apiRequest<HealthResponse>("/api/health");
+}
+
+type ListItemsParams = {
+  type?: string;
+  brand?: string;
+  status?: string;
+  mount?: string;
+  keyword?: string;
+  sort?: string;
+  page?: number;
+  page_size?: number;
+};
+
+function toQueryString(params: ListItemsParams): string {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+
+  return query.toString();
+}
+
+export function listItems(params: ListItemsParams = {}): Promise<ItemListResponse> {
+  const query = toQueryString(params);
+  return apiRequest<ItemListResponse>(`/api/items${query ? `?${query}` : ""}`);
+}
+
+export function getStatsSummary(): Promise<StatsSummary> {
+  return apiRequest<StatsSummary>("/api/stats/summary");
 }

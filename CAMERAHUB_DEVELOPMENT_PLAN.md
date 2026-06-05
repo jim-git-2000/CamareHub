@@ -691,20 +691,20 @@ Textarea
 
 ```bash
 cd frontend
-pnpm dev --hostname 0.0.0.0
+npm run dev
 ```
 
 访问：
 
 ```text
-http://服务器IP:3000
+http://服务器IP:3010
 ```
 
 后端：
 
 ```bash
 cd backend
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 访问：
@@ -712,6 +712,12 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```text
 http://服务器IP:8000/api/health
 ```
+
+后端 uv 说明：
+
+- 当前工作区可能不允许在 `backend/.venv` 内创建 Python 虚拟环境需要的符号链接。
+- 因此后端运行 `uv` 命令时，统一带上 `UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend"`。
+- 如果忘记设置该变量，`uv` 可能会再次尝试使用 `backend/.venv`，并报 `no Python executable was found`。
 
 ---
 
@@ -722,7 +728,7 @@ http://服务器IP:8000/api/health
 ```env
 DATABASE_URL=sqlite:///./data/gear.db
 UPLOAD_DIR=./uploads
-BACKEND_CORS_ORIGINS=http://localhost:3000
+BACKEND_CORS_ORIGINS=http://localhost:3010,http://127.0.0.1:3010,http://192.168.32.123:3010
 APP_NAME=CameraHub
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
@@ -895,7 +901,7 @@ GET /api/health
 
 ```bash
 cd backend
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 验收标准
