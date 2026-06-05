@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import check_database_connection, create_db_and_tables
 from app.core.config import settings
-from app.routers import health
+from app.database import check_database_connection, create_db_and_tables
+from app.routers import health, items
 
 
 @asynccontextmanager
@@ -26,3 +26,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
+app.include_router(items.router, prefix="/api")

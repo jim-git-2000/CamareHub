@@ -48,3 +48,8 @@ def check_database_connection() -> bool:
     with Session(engine) as session:
         session.exec(text("SELECT 1"))
     return True
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
