@@ -85,6 +85,18 @@ export type ItemListResponse = {
   total: number;
 };
 
+export type PhotoRead = {
+  id: number;
+  item_id: number;
+  file_path: string;
+  file_name: string;
+  content_type?: string | null;
+  file_size?: number | null;
+  sort_order: number;
+  created_at: string;
+  url: string;
+};
+
 export type StatsSummary = {
   total_value?: number | string | null;
   totalAssetValue?: number | string | null;

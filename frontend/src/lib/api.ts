@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, HealthResponse, ItemListResponse, StatsSummary } from "@/types";
+import type { ApiErrorResponse, HealthResponse, ItemListResponse, PhotoRead, StatsSummary } from "@/types";
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -88,6 +88,10 @@ function toQueryString(params: ListItemsParams): string {
 export function listItems(params: ListItemsParams = {}): Promise<ItemListResponse> {
   const query = toQueryString(params);
   return apiRequest<ItemListResponse>(`/api/items${query ? `?${query}` : ""}`);
+}
+
+export function listItemPhotos(itemId: number): Promise<PhotoRead[]> {
+  return apiRequest<PhotoRead[]>(`/api/items/${itemId}/photos`);
 }
 
 export function getStatsSummary(): Promise<StatsSummary> {
