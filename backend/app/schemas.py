@@ -152,3 +152,33 @@ class PhotoRead(SQLModel):
     sort_order: int
     created_at: datetime
     url: str
+
+
+class StatsSummaryRead(SQLModel):
+    total_value: float
+    camera_count: int
+    lens_count: int
+    film_stock: int
+    recent_items: list[ItemRead]
+
+
+class StatsBucketRead(SQLModel):
+    key: str
+    label: str
+    count: int
+    total_value: float = 0
+
+
+class LensFocalLengthBucketRead(SQLModel):
+    label: str
+    count: int
+    focal_length_min: float | None = None
+    focal_length_max: float | None = None
+
+
+class FilmStockBucketRead(SQLModel):
+    item_id: int
+    label: str
+    brand: str
+    model: str
+    quantity: int

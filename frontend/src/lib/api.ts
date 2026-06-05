@@ -4,7 +4,10 @@ import type {
   ItemListResponse,
   ItemMutationPayload,
   ItemRead,
+  FilmStockBucket,
+  LensFocalLengthBucket,
   PhotoRead,
+  StatsBucket,
   StatsSummary,
   TransactionRead
 } from "@/types";
@@ -145,4 +148,20 @@ export function listItemTransactions(itemId: number): Promise<TransactionRead[]>
 
 export function getStatsSummary(): Promise<StatsSummary> {
   return apiRequest<StatsSummary>("/api/stats/summary");
+}
+
+export function getStatsByBrand(): Promise<StatsBucket[]> {
+  return apiRequest<StatsBucket[]>("/api/stats/by-brand");
+}
+
+export function getStatsByType(): Promise<StatsBucket[]> {
+  return apiRequest<StatsBucket[]>("/api/stats/by-type");
+}
+
+export function getStatsLensFocalLength(): Promise<LensFocalLengthBucket[]> {
+  return apiRequest<LensFocalLengthBucket[]>("/api/stats/lens-focal-length");
+}
+
+export function getStatsFilmStock(): Promise<FilmStockBucket[]> {
+  return apiRequest<FilmStockBucket[]>("/api/stats/film-stock");
 }

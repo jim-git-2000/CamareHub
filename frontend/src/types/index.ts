@@ -166,21 +166,43 @@ export type TransactionRead = {
 };
 
 export type StatsSummary = {
-  total_value?: number | string | null;
+  total_value: number;
+  camera_count: number;
+  lens_count: number;
+  film_stock: number;
+  recent_items: ItemRead[];
   totalAssetValue?: number | string | null;
   asset_value?: number | string | null;
   current_value_total?: number | string | null;
   total_current_value?: number | string | null;
-  camera_count?: number | string | null;
   cameraCount?: number | string | null;
   cameras?: number | string | null;
-  lens_count?: number | string | null;
   lensCount?: number | string | null;
   lenses?: number | string | null;
-  film_stock?: number | string | null;
   filmStock?: number | string | null;
   film_quantity?: number | string | null;
   filmQuantity?: number | string | null;
-  recent_items?: ItemRead[] | null;
   recentItems?: ItemRead[] | null;
+};
+
+export type StatsBucket = {
+  key: string;
+  label: string;
+  count: number;
+  total_value: number;
+};
+
+export type LensFocalLengthBucket = {
+  label: string;
+  count: number;
+  focal_length_min?: number | null;
+  focal_length_max?: number | null;
+};
+
+export type FilmStockBucket = {
+  item_id: number;
+  label: string;
+  brand: string;
+  model: string;
+  quantity: number;
 };
