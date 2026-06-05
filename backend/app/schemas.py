@@ -140,3 +140,15 @@ class TransactionRead(TransactionBase):
     id: int
     item_id: int
     created_at: datetime
+
+
+class PhotoRead(SQLModel):
+    id: int
+    item_id: int
+    file_path: str
+    file_name: str
+    content_type: str | None = None
+    file_size: int | None = None
+    sort_order: int
+    created_at: datetime
+    url: str

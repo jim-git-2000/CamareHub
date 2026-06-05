@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid4
 
 from sqlalchemy import delete, func, or_
 from sqlmodel import Session, select
@@ -12,6 +13,7 @@ from app.schemas import (
     ItemRead,
     ItemUpdate,
     LensBase,
+    PhotoRead,
     TransactionCreate,
     TransactionRead,
     TransactionUpdate,
@@ -20,6 +22,9 @@ from app.schemas import (
 
 VALID_ITEM_TYPES = {"camera", "lens", "film", "accessory"}
 VALID_TRANSACTION_TYPES = {"purchase", "repair", "sale", "maintenance", "accessory"}
+ALLOWED_PHOTO_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
 VALID_SORTS = {
     "created_at": Item.created_at,
     "-created_at": Item.created_at.desc(),
@@ -100,6 +105,38 @@ def _delete_photo_files(photos: list[Photo]) -> None:
             path = PROJECT_ROOT / path
         if path.exists() and path.is_file():
             path.unlink()
+
+
+def _photo_url(photo: Photo) -> str:
+    path = Path(photo.file_path)
+    return f"/uploads/{path.name}"
+
+
+def _to_photo_read(photo: Photo) -> PhotoRead:
+    data = photo.model_dump()
+    data["url"] = _photo_url(photo)
+    return PhotoRead.model_validate(data)
+
+
+def _upload_dir() -> Path:
+    from app.core.config import settings
+
+    path = Path(settings.upload_dir)
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _validate_photo_upload(file_name: str, content_type: str | None, content: bytes) -> str:
+    extension = Path(file_name).suffix.lower().lstrip(".")
+    if extension not in ALLOWED_PHOTO_EXTENSIONS:
+        raise ValueError("Only jpg, jpeg, png and webp images are allowed")
+    if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
+        raise ValueError("Only image/jpeg, image/png and image/webp content types are allowed")
+    if len(content) > MAX_PHOTO_SIZE_BYTES:
+        raise ValueError("Image size must be 10MB or less")
+    return extension
 
 
 def _to_item_read(session: Session, item: Item) -> ItemRead:
@@ -280,5 +317,60 @@ def delete_transaction(session: Session, transaction_id: int) -> bool:
         return False
 
     session.delete(transaction)
+    session.commit()
+    return True
+
+
+def create_photo(
+    session: Session,
+    item_id: int,
+    file_name: str,
+    content_type: str | None,
+    content: bytes,
+) -> PhotoRead | None:
+    item = session.get(Item, item_id)
+    if item is None:
+        return None
+
+    extension = _validate_photo_upload(file_name, content_type, content)
+    stored_name = f"{uuid4().hex}.{extension}"
+    relative_path = f"uploads/{stored_name}"
+    target_path = _upload_dir() / stored_name
+    target_path.write_bytes(content)
+
+    photo = Photo(
+        item_id=item_id,
+        file_path=relative_path,
+        file_name=file_name,
+        content_type=content_type,
+        file_size=len(content),
+    )
+    session.add(photo)
+    session.commit()
+    session.refresh(photo)
+    return _to_photo_read(photo)
+
+
+def list_photos(session: Session, item_id: int) -> list[PhotoRead] | None:
+    item = session.get(Item, item_id)
+    if item is None:
+        return None
+
+    statement = (
+        select(Photo)
+        .where(Photo.item_id == item_id)
+        .order_by(Photo.sort_order, Photo.created_at, Photo.id)
+    )
+    photos = session.exec(statement).all()
+    return [_to_photo_read(photo) for photo in photos]
+
+
+def delete_photo(session: Session, photo_id: int) -> bool:
+    photo = session.get(Photo, photo_id)
+    if photo is None:
+        return False
+
+    _delete_photo_files([photo])
+    session.delete(photo)
     session.commit()
     return True
