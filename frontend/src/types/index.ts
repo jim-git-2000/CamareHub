@@ -97,6 +97,18 @@ export type PhotoRead = {
   url: string;
 };
 
+export type TransactionRead = {
+  id: number;
+  item_id: number;
+  type: string;
+  amount?: number | null;
+  currency: string;
+  date?: string | null;
+  vendor?: string | null;
+  notes?: string | null;
+  created_at: string;
+};
+
 export type StatsSummary = {
   total_value?: number | string | null;
   totalAssetValue?: number | string | null;
