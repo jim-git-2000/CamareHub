@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { Aperture, CalendarDays, Camera, CircleDollarSign, Film, ImageIcon, MapPin, PackagePlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_BASE_URL, getStatsSummary, listItems, listShootingEntries } from "@/lib/api";
+import { recentItemCardStyles, statCardStyles, type StatCardTone } from "@/lib/stat-card-styles";
 import type { ItemRead, ShootingEntryPhotoRead, ShootingEntryRead, StatsSummary } from "@/types";
 
 type DashboardSummary = {
@@ -120,15 +120,15 @@ async function fetchDashboardSummary(): Promise<DashboardSummary> {
   }
 }
 
-function typeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    camera: "相机",
-    lens: "镜头",
-    film: "胶片",
-    accessory: "配件"
+function itemTypeIcon(type: string): typeof CircleDollarSign {
+  const icons: Record<string, typeof CircleDollarSign> = {
+    camera: Camera,
+    lens: Aperture,
+    film: Film,
+    accessory: PackagePlus
   };
 
-  return labels[type] ?? type;
+  return icons[type] ?? PackagePlus;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -181,6 +181,41 @@ function isEmptySummary(summary: DashboardSummary): boolean {
   );
 }
 
+function RecentItemCard({ item, index }: { item: ItemRead; index: number }) {
+  const Icon = itemTypeIcon(item.type);
+  const style = recentItemCardStyles[index % recentItemCardStyles.length];
+  const price = readNumber(item.purchase_price, item.current_value);
+
+  return (
+    <Link href={`/items/${item.id}`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <div
+        className="overflow-hidden rounded-md border transition-colors hover:brightness-[0.98]"
+        style={style}
+      >
+        <div className="grid min-h-[120px] gap-0 md:grid-cols-[minmax(0,1fr)_160px]">
+          <div className="order-2 flex min-h-[120px] items-start justify-end p-4 md:order-2 md:h-full">
+            <div className="rounded-full bg-background/60 p-2 text-current shadow-sm">
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </div>
+          </div>
+          <div className="order-1 flex min-w-0 flex-col justify-center gap-2 p-4">
+            <div className="truncate text-sm font-semibold">
+              {item.brand} {item.model}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-current/70">
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                {formatDate(item.purchase_date)}
+              </span>
+              <span>{currencyFormatter.format(price)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
   const cover = entryCover(entry);
   const color = parseColor(cover?.dominant_color);
@@ -193,8 +228,8 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
         className="overflow-hidden rounded-md border transition-colors duration-300 hover:border-primary/60"
         style={{ backgroundColor: colorToCss(color) }}
       >
-        <div className="grid min-h-28 gap-0 md:grid-cols-[minmax(0,1fr)_160px]">
-          <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-28">
+        <div className="grid min-h-[120px] gap-0 md:grid-cols-[minmax(0,1fr)_160px]">
+          <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-[120px]">
             {cover ? (
               <div className="relative h-full">
                 <div
@@ -206,7 +241,7 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
                 <img src={photoSrc(cover)} alt={cover.file_name} className="h-full w-full object-cover" />
               </div>
             ) : (
-              <div className="flex h-full min-h-28 items-center justify-center" style={{ color: mutedForeground }}>
+              <div className="flex h-full min-h-[120px] items-center justify-center" style={{ color: mutedForeground }}>
                 <ImageIcon className="h-7 w-7" aria-hidden="true" />
               </div>
             )}
@@ -237,7 +272,7 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
 function RecentShootingEntriesCard({ state }: { state: RecentShootingEntriesState }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <CardTitle className="text-base">最近拍摄事项</CardTitle>
         <CardDescription>展示最近 5 条拍摄记录</CardDescription>
       </CardHeader>
@@ -277,22 +312,26 @@ function StatCard({
   title,
   value,
   description,
-  icon: Icon
+  icon: Icon,
+  tone
 }: {
   title: string;
   value: string;
   description: string;
   icon: typeof CircleDollarSign;
+  tone: StatCardTone;
 }) {
+  const toneStyle = statCardStyles[tone];
+
   return (
-    <Card>
+    <Card style={toneStyle.style}>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-        <CardDescription>{title}</CardDescription>
-        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <CardDescription className="font-semibold text-current/80">{title}</CardDescription>
+        <Icon className="h-4 w-4" style={toneStyle.iconStyle} aria-hidden="true" />
       </CardHeader>
       <CardContent>
         <div className="break-words text-2xl font-semibold tracking-normal">{value}</div>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        <p className="mt-1 text-xs text-current/70">{description}</p>
       </CardContent>
     </Card>
   );
@@ -359,25 +398,29 @@ export default function DashboardPage() {
         title: "总资产估值",
         value: currencyFormatter.format(state.summary.totalValue),
         description: "按当前估值汇总",
-        icon: CircleDollarSign
+        icon: CircleDollarSign,
+        tone: "totalValue" as const
       },
       {
         title: "相机数量",
         value: String(state.summary.cameraCount),
         description: "类型为 camera 的器材",
-        icon: Camera
+        icon: Camera,
+        tone: "cameraCount" as const
       },
       {
         title: "镜头数量",
         value: String(state.summary.lensCount),
         description: "类型为 lens 的器材",
-        icon: Aperture
+        icon: Aperture,
+        tone: "lensCount" as const
       },
       {
         title: "胶片库存",
         value: String(state.summary.filmStock),
         description: "按胶片数量汇总",
-        icon: Film
+        icon: Film,
+        tone: "filmStock" as const
       }
     ];
   }, [state]);
@@ -449,7 +492,7 @@ export default function DashboardPage() {
           </Card>
         ) : (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-4">
               <CardTitle className="text-base">最近新增器材</CardTitle>
               <CardDescription>按创建时间展示最近 5 条记录</CardDescription>
             </CardHeader>
@@ -457,24 +500,9 @@ export default function DashboardPage() {
               {state.summary.recentItems.length === 0 ? (
                 <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">暂无最近新增器材</div>
               ) : (
-                <div className="divide-y rounded-md border">
-                  {state.summary.recentItems.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/items/${item.id}`}
-                      className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/60 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">
-                          {item.brand} {item.model}
-                        </div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground">{item.nickname || item.location || "未填写备注信息"}</div>
-                      </div>
-                      <div className="flex items-center gap-2 sm:shrink-0">
-                        <Badge variant="secondary">{typeLabel(item.type)}</Badge>
-                        <span className="text-xs text-muted-foreground">{currencyFormatter.format(readNumber(item.current_value))}</span>
-                      </div>
-                    </Link>
+                <div className="space-y-3">
+                  {state.summary.recentItems.map((item, index) => (
+                    <RecentItemCard key={item.id} item={item} index={index} />
                   ))}
                 </div>
               )}

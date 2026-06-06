@@ -12,6 +12,7 @@ import {
   getStatsLensFocalLength,
   getStatsSummary
 } from "@/lib/api";
+import { chartPalette, statCardStyles, type StatCardTone } from "@/lib/stat-card-styles";
 import type { FilmStockBucket, LensFocalLengthBucket, StatsBucket, StatsSummary } from "@/types";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
@@ -36,6 +37,7 @@ const currencyFormatter = new Intl.NumberFormat("zh-CN", {
 
 function pieOption(title: string, data: Array<{ name: string; value: number }>): EChartsOption {
   return {
+    color: chartPalette,
     tooltip: { trigger: "item" },
     legend: { bottom: 0, type: "scroll" },
     series: [
@@ -53,6 +55,7 @@ function pieOption(title: string, data: Array<{ name: string; value: number }>):
 
 function barOption(name: string, labels: string[], values: number[]): EChartsOption {
   return {
+    color: chartPalette,
     tooltip: { trigger: "axis" },
     grid: { left: 40, right: 20, top: 24, bottom: 64 },
     xAxis: {
@@ -66,7 +69,11 @@ function barOption(name: string, labels: string[], values: number[]): EChartsOpt
         name,
         type: "bar",
         data: values,
-        barMaxWidth: 42
+        barMaxWidth: 42,
+        itemStyle: {
+          borderRadius: [4, 4, 0, 0],
+          color: (params: { dataIndex: number }) => chartPalette[params.dataIndex % chartPalette.length]
+        }
       }
     ]
   };
@@ -89,22 +96,26 @@ function StatCard({
   title,
   value,
   description,
-  icon: Icon
+  icon: Icon,
+  tone
 }: {
   title: string;
   value: string;
   description: string;
   icon: typeof CircleDollarSign;
+  tone: StatCardTone;
 }) {
+  const toneStyle = statCardStyles[tone];
+
   return (
-    <Card>
+    <Card style={toneStyle.style}>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-        <CardDescription>{title}</CardDescription>
-        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <CardDescription className="font-semibold text-current/80">{title}</CardDescription>
+        <Icon className="h-4 w-4" style={toneStyle.iconStyle} aria-hidden="true" />
       </CardHeader>
       <CardContent>
         <div className="break-words text-2xl font-semibold tracking-normal">{value}</div>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        <p className="mt-1 text-xs text-current/70">{description}</p>
       </CardContent>
     </Card>
   );
@@ -240,10 +251,11 @@ export default function StatsPage() {
           value={currencyFormatter.format(state.summary.total_value)}
           description="按当前估值汇总"
           icon={CircleDollarSign}
+          tone="totalValue"
         />
-        <StatCard title="相机数量" value={String(state.summary.camera_count)} description="类型为 camera 的器材" icon={PieChart} />
-        <StatCard title="镜头数量" value={String(state.summary.lens_count)} description="类型为 lens 的器材" icon={BarChart3} />
-        <StatCard title="胶片库存" value={String(state.summary.film_stock)} description="按胶片数量汇总" icon={Package} />
+        <StatCard title="相机数量" value={String(state.summary.camera_count)} description="类型为 camera 的器材" icon={PieChart} tone="cameraCount" />
+        <StatCard title="镜头数量" value={String(state.summary.lens_count)} description="类型为 lens 的器材" icon={BarChart3} tone="lensCount" />
+        <StatCard title="胶片库存" value={String(state.summary.film_stock)} description="按胶片数量汇总" icon={Package} tone="filmStock" />
       </div>
 
       {empty ? (
