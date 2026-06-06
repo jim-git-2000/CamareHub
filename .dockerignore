@@ -1,0 +1,15 @@
+.git
+.github
+frontend/node_modules
+frontend/.next
+backend/.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data
+uploads
+backups
+*.db
+*.sqlite
+*.log
