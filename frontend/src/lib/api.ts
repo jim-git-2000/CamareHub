@@ -32,13 +32,21 @@ export class ApiError extends Error {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   const contentType = response.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");
-  const payload = isJson ? await response.json() : await response.text();
+  const rawPayload = await response.text();
+  const payload = isJson && rawPayload ? JSON.parse(rawPayload) : rawPayload || undefined;
 
   if (!response.ok) {
-    const errorPayload = payload as ApiErrorResponse;
-    const message = errorPayload.detail ?? errorPayload.message ?? response.statusText;
+    const errorPayload = payload as ApiErrorResponse | string | undefined;
+    const message =
+      typeof errorPayload === "object" && errorPayload !== null
+        ? errorPayload.detail ?? errorPayload.message ?? response.statusText
+        : errorPayload || response.statusText;
     throw new ApiError(message, response.status, payload);
   }
 
