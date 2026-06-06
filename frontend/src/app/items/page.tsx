@@ -313,7 +313,7 @@ export default function ItemsPage() {
         setState({
           status: "error",
           items: [],
-          message: error instanceof Error ? error.message : "Items failed to load"
+          message: error instanceof Error ? error.message : "器材加载失败"
         });
       });
 
@@ -343,7 +343,7 @@ export default function ItemsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Items</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">器材</h1>
           <p className="mt-1 text-sm text-muted-foreground">器材列表</p>
         </div>
         <Button asChild>

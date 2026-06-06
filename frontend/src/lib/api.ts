@@ -181,6 +181,14 @@ export function getStatsLensFocalLength(): Promise<LensFocalLengthBucket[]> {
   return apiRequest<LensFocalLengthBucket[]>("/api/stats/lens-focal-length");
 }
 
+export function getStatsLensZoomType(): Promise<StatsBucket[]> {
+  return apiRequest<StatsBucket[]>("/api/stats/lens-zoom-type");
+}
+
+export function getStatsLensFocalCategory(): Promise<StatsBucket[]> {
+  return apiRequest<StatsBucket[]>("/api/stats/lens-focal-category");
+}
+
 export function getStatsFilmStock(): Promise<FilmStockBucket[]> {
   return apiRequest<FilmStockBucket[]>("/api/stats/film-stock");
 }

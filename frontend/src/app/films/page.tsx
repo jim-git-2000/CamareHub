@@ -334,7 +334,7 @@ export default function FilmsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">照片记录</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">照片</h1>
           <p className="mt-1 text-sm text-muted-foreground">按拍摄事项汇总照片、地点和关联设备</p>
         </div>
         <Button type="button" onClick={() => setFormOpen(true)}>

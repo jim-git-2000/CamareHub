@@ -9,13 +9,20 @@ import {
   getStatsByBrand,
   getStatsByType,
   getStatsFilmStock,
-  getStatsLensFocalLength,
+  getStatsLensFocalCategory,
+  getStatsLensZoomType,
   getStatsSummary
 } from "@/lib/api";
 import { chartPalette, statCardStyles, type StatCardTone } from "@/lib/stat-card-styles";
-import type { FilmStockBucket, LensFocalLengthBucket, StatsBucket, StatsSummary } from "@/types";
+import type { FilmStockBucket, StatsBucket, StatsSummary } from "@/types";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+const CHART_HEIGHT = 320;
+const LENS_CHART_HEIGHT = 276;
+const lensZoomTypeStyles = [
+  { backgroundColor: "#e7f0ea", borderColor: "#bdd7c6" },
+  { backgroundColor: "#f0e9dc", borderColor: "#dac8a9" }
+];
 
 type StatsState =
   | { status: "loading" }
@@ -24,7 +31,8 @@ type StatsState =
       summary: StatsSummary;
       byBrand: StatsBucket[];
       byType: StatsBucket[];
-      lensFocalLength: LensFocalLengthBucket[];
+      lensZoomType: StatsBucket[];
+      lensFocalCategory: StatsBucket[];
       filmStock: FilmStockBucket[];
     }
   | { status: "error"; message: string };
@@ -57,11 +65,11 @@ function barOption(name: string, labels: string[], values: number[]): EChartsOpt
   return {
     color: chartPalette,
     tooltip: { trigger: "axis" },
-    grid: { left: 40, right: 20, top: 24, bottom: 64 },
+    grid: { left: 40, right: 20, top: 24, bottom: 48 },
     xAxis: {
       type: "category",
       data: labels,
-      axisLabel: { interval: 0, rotate: labels.length > 4 ? 30 : 0 }
+      axisLabel: { interval: 0, rotate: 0 }
     },
     yAxis: { type: "value", minInterval: 1 },
     series: [
@@ -87,7 +95,8 @@ function isEmptyStats(state: Extract<StatsState, { status: "ready" }>): boolean 
     state.summary.film_stock === 0 &&
     state.byBrand.length === 0 &&
     state.byType.length === 0 &&
-    state.lensFocalLength.length === 0 &&
+    state.lensZoomType.every((item) => item.count === 0) &&
+    state.lensFocalCategory.every((item) => item.count === 0) &&
     state.filmStock.length === 0
   );
 }
@@ -145,7 +154,52 @@ function ChartCard({
             暂无数据
           </div>
         ) : (
-          <ReactECharts option={option} style={{ height: 320, width: "100%" }} />
+          <ReactECharts option={option} style={{ height: CHART_HEIGHT, width: "100%" }} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LensStatsCard({
+  zoomType,
+  focalCategory,
+  option
+}: {
+  zoomType: StatsBucket[];
+  focalCategory: StatsBucket[];
+  option: EChartsOption;
+}) {
+  const empty = zoomType.every((item) => item.count === 0) && focalCategory.every((item) => item.count === 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">镜头统计</CardTitle>
+        <CardDescription>焦段为主，变焦可计入多类</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {empty ? (
+          <div className="flex h-72 flex-col items-center justify-center rounded-md border border-dashed text-center text-sm text-muted-foreground">
+            <Package className="mb-2 h-7 w-7" aria-hidden="true" />
+            暂无数据
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {zoomType.map((item, index) => (
+                <div
+                  key={item.key}
+                  className="flex h-8 items-center justify-center gap-2 rounded-md border px-2.5 text-sm"
+                  style={lensZoomTypeStyles[index % lensZoomTypeStyles.length]}
+                >
+                  <span className="text-xs font-semibold text-muted-foreground">{item.label}</span>
+                  <span className="font-semibold tracking-normal">{item.count}</span>
+                </div>
+              ))}
+            </div>
+            <ReactECharts option={option} style={{ height: LENS_CHART_HEIGHT, width: "100%" }} />
+          </div>
         )}
       </CardContent>
     </Card>
@@ -162,12 +216,13 @@ export default function StatsPage() {
       getStatsSummary(),
       getStatsByBrand(),
       getStatsByType(),
-      getStatsLensFocalLength(),
+      getStatsLensZoomType(),
+      getStatsLensFocalCategory(),
       getStatsFilmStock()
     ])
-      .then(([summary, byBrand, byType, lensFocalLength, filmStock]) => {
+      .then(([summary, byBrand, byType, lensZoomType, lensFocalCategory, filmStock]) => {
         if (active) {
-          setState({ status: "ready", summary, byBrand, byType, lensFocalLength, filmStock });
+          setState({ status: "ready", summary, byBrand, byType, lensZoomType, lensFocalCategory, filmStock });
         }
       })
       .catch((error: unknown) => {
@@ -195,10 +250,10 @@ export default function StatsPage() {
         "类型占比",
         state.byType.map((item) => ({ name: item.label, value: item.count }))
       ),
-      lens: barOption(
+      lensCategory: barOption(
         "镜头数量",
-        state.lensFocalLength.map((item) => item.label),
-        state.lensFocalLength.map((item) => item.count)
+        state.lensFocalCategory.map((item) => item.label),
+        state.lensFocalCategory.map((item) => item.count)
       ),
       film: barOption(
         "库存数量",
@@ -223,7 +278,7 @@ export default function StatsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Stats</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">统计</h1>
           <p className="mt-1 text-sm text-muted-foreground">统计图表</p>
         </div>
         <Card className="border-destructive/40">
@@ -241,7 +296,7 @@ export default function StatsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-normal">Stats</h1>
+        <h1 className="text-2xl font-semibold tracking-normal">统计</h1>
         <p className="mt-1 text-sm text-muted-foreground">统计图表</p>
       </div>
 
@@ -279,11 +334,10 @@ export default function StatsPage() {
             empty={state.byType.length === 0}
             option={chartOptions?.type ?? {}}
           />
-          <ChartCard
-            title="焦段分布"
-            description="按镜头焦段统计数量"
-            empty={state.lensFocalLength.length === 0}
-            option={chartOptions?.lens ?? {}}
+          <LensStatsCard
+            zoomType={state.lensZoomType}
+            focalCategory={state.lensFocalCategory}
+            option={chartOptions?.lensCategory ?? {}}
           />
           <ChartCard
             title="胶片库存"

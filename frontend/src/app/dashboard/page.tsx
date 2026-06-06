@@ -355,7 +355,7 @@ export default function DashboardPage() {
       })
       .catch((error: unknown) => {
         if (active) {
-          setState({ status: "error", message: error instanceof Error ? error.message : "Dashboard data failed to load" });
+          setState({ status: "error", message: error instanceof Error ? error.message : "概览数据加载失败" });
         }
       });
 
@@ -429,7 +429,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">概览</h1>
           <p className="mt-1 text-sm text-muted-foreground">正在加载概览数据...</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -451,7 +451,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-normal">概览</h1>
           <p className="mt-1 text-sm text-muted-foreground">基础概览</p>
         </div>
         <Card className="border-destructive/40">
@@ -469,7 +469,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-normal">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-normal">概览</h1>
         <p className="mt-1 text-sm text-muted-foreground">基础概览</p>
       </div>
 
