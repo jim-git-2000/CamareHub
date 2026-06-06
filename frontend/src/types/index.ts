@@ -206,3 +206,56 @@ export type FilmStockBucket = {
   model: string;
   quantity: number;
 };
+
+export type ShootingEntryItemRole = "camera" | "lens" | "film" | "other";
+
+export type ShootingEntryItemLink = {
+  item_id: number;
+  role: ShootingEntryItemRole;
+};
+
+export type ShootingEntryItemLinkRead = ShootingEntryItemLink & {
+  id: number;
+  entry_id: number;
+  item: ItemRead;
+};
+
+export type ShootingEntryPhotoRead = {
+  id: number;
+  entry_id: number;
+  file_path: string;
+  file_name: string;
+  content_type?: string | null;
+  file_size?: number | null;
+  sort_order: number;
+  created_at: string;
+  url: string;
+};
+
+export type ShootingEntryRead = {
+  id: number;
+  title: string;
+  date?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  item_links: ShootingEntryItemLinkRead[];
+  photos: ShootingEntryPhotoRead[];
+  photo_count: number;
+};
+
+export type ShootingEntryMutationPayload = {
+  title: string;
+  date?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  item_links: ShootingEntryItemLink[];
+};
+
+export type ShootingEntryListResponse = {
+  items: ShootingEntryRead[];
+  page: number;
+  page_size: number;
+  total: number;
+};

@@ -1,7 +1,7 @@
 from datetime import date as Date
 from datetime import datetime
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 
 class CameraBase(SQLModel):
@@ -182,3 +182,61 @@ class FilmStockBucketRead(SQLModel):
     brand: str
     model: str
     quantity: int
+
+
+class ShootingEntryItemLinkBase(SQLModel):
+    item_id: int
+    role: str
+
+
+class ShootingEntryItemLinkRead(ShootingEntryItemLinkBase):
+    id: int
+    entry_id: int
+    item: ItemRead
+
+
+class ShootingEntryPhotoRead(SQLModel):
+    id: int
+    entry_id: int
+    file_path: str
+    file_name: str
+    content_type: str | None = None
+    file_size: int | None = None
+    sort_order: int
+    created_at: datetime
+    url: str
+
+
+class ShootingEntryBase(SQLModel):
+    title: str
+    date: Date | None = None
+    location: str | None = None
+    notes: str | None = None
+
+
+class ShootingEntryCreate(ShootingEntryBase):
+    item_links: list[ShootingEntryItemLinkBase] = Field(default_factory=list)
+
+
+class ShootingEntryUpdate(SQLModel):
+    title: str | None = None
+    date: Date | None = None
+    location: str | None = None
+    notes: str | None = None
+    item_links: list[ShootingEntryItemLinkBase] | None = None
+
+
+class ShootingEntryRead(ShootingEntryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    item_links: list[ShootingEntryItemLinkRead]
+    photos: list[ShootingEntryPhotoRead]
+    photo_count: int
+
+
+class ShootingEntryListResponse(SQLModel):
+    items: list[ShootingEntryRead]
+    page: int
+    page_size: int
+    total: int

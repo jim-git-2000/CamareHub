@@ -103,3 +103,37 @@ class Transaction(SQLModel, table=True):
     vendor: str | None = None
     notes: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class ShootingEntry(SQLModel, table=True):
+    __tablename__ = "shooting_entries"
+
+    id: int | None = Field(default=None, primary_key=True)
+    title: str = Field(index=True)
+    date: Date | None = Field(default=None, index=True)
+    location: str | None = None
+    notes: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ShootingEntryItem(SQLModel, table=True):
+    __tablename__ = "shooting_entry_items"
+
+    id: int | None = Field(default=None, primary_key=True)
+    entry_id: int = Field(foreign_key="shooting_entries.id", index=True)
+    item_id: int = Field(foreign_key="items.id", index=True)
+    role: str = Field(index=True)
+
+
+class ShootingEntryPhoto(SQLModel, table=True):
+    __tablename__ = "shooting_entry_photos"
+
+    id: int | None = Field(default=None, primary_key=True)
+    entry_id: int = Field(foreign_key="shooting_entries.id", index=True)
+    file_path: str
+    file_name: str
+    content_type: str | None = None
+    file_size: int | None = None
+    sort_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utc_now)

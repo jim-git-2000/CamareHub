@@ -9,6 +9,10 @@ import type {
   PhotoRead,
   StatsBucket,
   StatsSummary,
+  ShootingEntryListResponse,
+  ShootingEntryMutationPayload,
+  ShootingEntryPhotoRead,
+  ShootingEntryRead,
   TransactionRead
 } from "@/types";
 
@@ -164,4 +168,60 @@ export function getStatsLensFocalLength(): Promise<LensFocalLengthBucket[]> {
 
 export function getStatsFilmStock(): Promise<FilmStockBucket[]> {
   return apiRequest<FilmStockBucket[]>("/api/stats/film-stock");
+}
+
+type ListShootingEntriesParams = {
+  keyword?: string;
+  item_id?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export function listShootingEntries(params: ListShootingEntriesParams = {}): Promise<ShootingEntryListResponse> {
+  const query = toQueryString(params);
+  return apiRequest<ShootingEntryListResponse>(`/api/shooting-entries${query ? `?${query}` : ""}`);
+}
+
+export function getShootingEntry(entryId: number): Promise<ShootingEntryRead> {
+  return apiRequest<ShootingEntryRead>(`/api/shooting-entries/${entryId}`);
+}
+
+export function createShootingEntry(payload: ShootingEntryMutationPayload): Promise<ShootingEntryRead> {
+  return apiRequest<ShootingEntryRead>("/api/shooting-entries", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateShootingEntry(entryId: number, payload: ShootingEntryMutationPayload): Promise<ShootingEntryRead> {
+  return apiRequest<ShootingEntryRead>(`/api/shooting-entries/${entryId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteShootingEntry(entryId: number): Promise<void> {
+  return apiRequest<void>(`/api/shooting-entries/${entryId}`, { method: "DELETE" });
+}
+
+export function listShootingEntryPhotos(entryId: number): Promise<ShootingEntryPhotoRead[]> {
+  return apiRequest<ShootingEntryPhotoRead[]>(`/api/shooting-entries/${entryId}/photos`);
+}
+
+export function uploadShootingEntryPhoto(entryId: number, file: File): Promise<ShootingEntryPhotoRead> {
+  const formData = new FormData();
+  formData.set("file", file);
+
+  return apiRequest<ShootingEntryPhotoRead>(`/api/shooting-entries/${entryId}/photos`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+export function deleteShootingEntryPhoto(photoId: number): Promise<void> {
+  return apiRequest<void>(`/api/shooting-entry-photos/${photoId}`, { method: "DELETE" });
+}
+
+export function setShootingEntryCoverPhoto(photoId: number): Promise<ShootingEntryPhotoRead> {
+  return apiRequest<ShootingEntryPhotoRead>(`/api/shooting-entry-photos/${photoId}/cover`, { method: "PUT" });
 }

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.database import PROJECT_ROOT, check_database_connection, create_db_and_tables
-from app.routers import health, items, photos, stats, transactions
+from app.routers import health, items, photos, shooting_entries, stats, transactions
 
 
 @asynccontextmanager
@@ -38,3 +38,4 @@ app.include_router(items.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(shooting_entries.router, prefix="/api")
