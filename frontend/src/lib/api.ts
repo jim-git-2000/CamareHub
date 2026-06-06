@@ -16,7 +16,7 @@ import type {
   TransactionRead
 } from "@/types";
 
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
+export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 const DEFAULT_TIMEOUT_MS = 5000;
 
 export class ApiError extends Error {
