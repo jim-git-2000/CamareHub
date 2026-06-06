@@ -202,6 +202,7 @@ class ShootingEntryPhotoRead(SQLModel):
     file_name: str
     content_type: str | None = None
     file_size: int | None = None
+    dominant_color: str | None = None
     sort_order: int
     created_at: datetime
     url: str

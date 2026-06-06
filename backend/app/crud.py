@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+from PIL import Image
 from sqlalchemy import delete, func, or_
 from sqlmodel import Session, select
 
@@ -161,6 +162,32 @@ def _validate_photo_upload(file_name: str, content_type: str | None, content: by
     if len(content) > MAX_PHOTO_SIZE_BYTES:
         raise ValueError("Image size must be 10MB or less")
     return extension
+
+
+def calculate_dominant_color(content: bytes) -> str | None:
+    try:
+        from io import BytesIO
+
+        with Image.open(BytesIO(content)) as image:
+            image = image.convert("RGB")
+            source_width, source_height = image.size
+            crop_width = max(1, round(source_width * 0.28))
+            image = image.crop((0, 0, crop_width, source_height)).resize((28, 28))
+            pixels = list(image.getdata())
+    except Exception:
+        return None
+
+    if not pixels:
+        return None
+
+    red = sum(pixel[0] for pixel in pixels) / len(pixels)
+    green = sum(pixel[1] for pixel in pixels) / len(pixels)
+    blue = sum(pixel[2] for pixel in pixels) / len(pixels)
+    mix = 0.16
+    red = round(red + (255 - red) * mix)
+    green = round(green + (255 - green) * mix)
+    blue = round(blue + (255 - blue) * mix)
+    return f"#{red:02x}{green:02x}{blue:02x}"
 
 
 def _to_item_read(session: Session, item: Item) -> ItemRead:
@@ -491,10 +518,15 @@ def list_shooting_entries(
     session: Session,
     keyword: str | None = None,
     item_id: int | None = None,
+    camera_item_ids: list[int] | None = None,
+    lens_item_ids: list[int] | None = None,
+    film_item_ids: list[int] | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> ShootingEntryListResponse:
-    entries = session.exec(select(ShootingEntry).order_by(ShootingEntry.created_at.desc())).all()
+    entries = session.exec(
+        select(ShootingEntry).order_by(ShootingEntry.date.desc(), ShootingEntry.created_at.desc(), ShootingEntry.id.desc())
+    ).all()
 
     if keyword:
         needle = keyword.lower()
@@ -510,6 +542,24 @@ def list_shooting_entries(
         entry_ids = {
             link.entry_id
             for link in session.exec(select(ShootingEntryItem).where(ShootingEntryItem.item_id == item_id)).all()
+        }
+        entries = [entry for entry in entries if entry.id in entry_ids]
+
+    role_filters = [
+        ("camera", camera_item_ids or []),
+        ("lens", lens_item_ids or []),
+        ("film", film_item_ids or []),
+    ]
+    for role, item_ids in role_filters:
+        if not item_ids:
+            continue
+        entry_ids = {
+            link.entry_id
+            for link in session.exec(
+                select(ShootingEntryItem)
+                .where(ShootingEntryItem.role == role)
+                .where(ShootingEntryItem.item_id.in_(item_ids))
+            ).all()
         }
         entries = [entry for entry in entries if entry.id in entry_ids]
 
@@ -589,6 +639,7 @@ def create_shooting_entry_photo(
         file_name=file_name,
         content_type=content_type,
         file_size=len(content),
+        dominant_color=calculate_dominant_color(content),
     )
     session.add(photo)
     session.commit()

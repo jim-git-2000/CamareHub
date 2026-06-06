@@ -227,6 +227,7 @@ export type ShootingEntryPhotoRead = {
   file_name: string;
   content_type?: string | null;
   file_size?: number | null;
+  dominant_color?: string | null;
   sort_order: number;
   created_at: string;
   url: string;

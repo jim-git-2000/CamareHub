@@ -89,10 +89,17 @@ type ListItemsParams = {
   page_size?: number;
 };
 
-function toQueryString(params: ListItemsParams): string {
+function toQueryString(params: Record<string, string | number | boolean | Array<string | number> | undefined>): string {
   const query = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        query.set(key, value.join(","));
+      }
+      return;
+    }
+
     if (value !== undefined && value !== "") {
       query.set(key, String(value));
     }
@@ -173,6 +180,9 @@ export function getStatsFilmStock(): Promise<FilmStockBucket[]> {
 type ListShootingEntriesParams = {
   keyword?: string;
   item_id?: number;
+  camera_item_ids?: number[];
+  lens_item_ids?: number[];
+  film_item_ids?: number[];
   page?: number;
   page_size?: number;
 };

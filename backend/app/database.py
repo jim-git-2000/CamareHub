@@ -42,6 +42,17 @@ def create_db_and_tables() -> None:
     from app import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _ensure_sqlite_columns()
+
+
+def _ensure_sqlite_columns() -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    with engine.begin() as connection:
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(shooting_entry_photos)").fetchall()}
+        if "dominant_color" not in columns:
+            connection.exec_driver_sql("ALTER TABLE shooting_entry_photos ADD COLUMN dominant_color VARCHAR")
 
 
 def check_database_connection() -> bool:

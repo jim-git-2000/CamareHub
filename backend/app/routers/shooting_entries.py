@@ -16,10 +16,22 @@ from app.schemas import (
 router = APIRouter(tags=["shooting_entries"])
 
 
+def _parse_item_ids(value: str | None) -> list[int]:
+    if not value:
+        return []
+    try:
+        return [int(item) for item in value.split(",") if item.strip()]
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid item id filter") from exc
+
+
 @router.get("/shooting-entries", response_model=ShootingEntryListResponse)
 def list_shooting_entries(
     keyword: str | None = None,
     item_id: int | None = None,
+    camera_item_ids: str | None = None,
+    lens_item_ids: str | None = None,
+    film_item_ids: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     session: Session = Depends(get_session),
@@ -28,6 +40,9 @@ def list_shooting_entries(
         session=session,
         keyword=keyword,
         item_id=item_id,
+        camera_item_ids=_parse_item_ids(camera_item_ids),
+        lens_item_ids=_parse_item_ids(lens_item_ids),
+        film_item_ids=_parse_item_ids(film_item_ids),
         page=page,
         page_size=page_size,
     )

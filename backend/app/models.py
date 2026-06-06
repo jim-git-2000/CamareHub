@@ -135,5 +135,6 @@ class ShootingEntryPhoto(SQLModel, table=True):
     file_name: str
     content_type: str | None = None
     file_size: int | None = None
+    dominant_color: str | None = None
     sort_order: int = Field(default=0)
     created_at: datetime = Field(default_factory=utc_now)

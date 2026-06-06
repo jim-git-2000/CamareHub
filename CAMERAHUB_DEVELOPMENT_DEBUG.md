@@ -626,3 +626,594 @@ NEXT_PUBLIC_API_BASE_URL=http://192.168.32.123:8000 npm run dev
 仍需人工检查的问题：...
 下一步：调试 2。
 ```
+
+---
+
+## 调试 2：优化拍摄事项汇总页卡片与筛选
+
+### 目标
+
+优化 `/films` 拍摄事项汇总页：
+
+1. 汇总卡片视觉更美观。
+2. 筛选器从单一“全部关联器材”改成相机、镜头、胶片三栏多选筛选。
+
+---
+
+### 只允许做
+
+- 只调整 `/films` 拍摄事项汇总页。
+- 可以新增前端辅助函数或小组件。
+- 如后端现有接口不足以表达多栏筛选，可以在拍摄事项列表 API 中增加筛选参数。
+- 保持 `/films/[id]` 详情页现有编辑、删除、上传、设置封面逻辑不变。
+- 保持 item 管理页面现有功能不变。
+
+---
+
+### 不允许做
+
+- 不改 `/films` 路由名称。
+- 不把编辑、删除、上传图片重新放回汇总页。
+- 不新增无关页面。
+- 不改变拍摄事项、图片、item 的数据结构，除非筛选接口确实需要轻量扩展。
+
+---
+
+### 卡片视觉调整
+
+当前汇总页每个拍摄事项卡片只展示一张封面图，这是正确的。
+
+需要调整为：
+
+- 封面图移动到卡片最右侧。
+- 左侧主体区域使用纯色背景。
+- 左侧背景色来自封面图主色。
+- 左侧背景与右侧封面图边缘处要平缓过渡。
+- 没有封面图时使用稳定的默认低饱和度背景色。
+- 卡片仍然整体可点击，点击进入 `/films/{id}`。
+
+建议实现方式：
+
+- 前端读取封面图后用 `canvas` 采样主色或平均色。
+- 抽一个 `CoverColorCard` 或局部 helper。
+- 卡片背景使用 CSS `linear-gradient`：
+
+```css
+linear-gradient(90deg, 主色 0%, 主色 62%, rgba(...) 78%, transparent 100%)
+```
+
+实际实现时不要硬套上面的比例，应根据桌面和移动布局调整。
+
+移动端要求：
+
+- 移动端可以保持封面图在上方或右侧，但不能出现文字和图片重叠。
+- 文字必须清晰可读。
+- 卡片高度不应因图片加载前后大幅跳动。
+
+---
+
+### 筛选调整
+
+当前筛选只有一个：
+
+```text
+全部关联器材
+```
+
+需要改为三栏：
+
+```text
+相机
+镜头
+胶片
+```
+
+每一栏：
+
+- 可以多选。
+- 使用 checkbox / dropdown checkbox / popover 多选均可。
+- 默认不选择时表示“不限制该类型”。
+- 可以只筛选某一栏，例如只筛选某个相机。
+- 也可以同时筛选多栏，例如相机 + 镜头 + 胶片。
+
+筛选逻辑：
+
+- 三栏之间是“同时满足”。
+- 同一栏内多个选项是“满足任意一个”。
+
+示例：
+
+```text
+相机：富士 XH-1、佳能 RP
+镜头：富士 XC15-45
+胶片：不选择
+```
+
+含义：
+
+```text
+拍摄事项必须关联 富士 XH-1 或 佳能 RP
+并且必须关联 富士 XC15-45
+胶片不限
+```
+
+---
+
+### 后端 API 建议
+
+如果前端现有数据量较小，可以先前端筛选。
+
+但更稳妥的方式是在后端列表 API 支持：
+
+```text
+GET /api/shooting-entries?camera_item_ids=1,2&lens_item_ids=3,4&film_item_ids=5
+```
+
+或重复参数：
+
+```text
+GET /api/shooting-entries?camera_item_ids=1&camera_item_ids=2&lens_item_ids=3
+```
+
+实现时优先选择与当前 API helper 最容易维护的方式。
+
+要求：
+
+- 不选择某栏时不传该栏参数。
+- 每个栏内按 OR 匹配。
+- 栏与栏之间按 AND 匹配。
+- 分页 total 应按筛选后的结果计算。
+
+---
+
+### 前端实现要求
+
+更新：
+
+```text
+frontend/src/app/films/page.tsx
+frontend/src/lib/api.ts
+```
+
+可能新增：
+
+```text
+frontend/src/components/shooting-entry-filter.tsx
+frontend/src/components/shooting-entry-card.tsx
+```
+
+要求：
+
+- 相机选项只来自 `item.type === "camera"`。
+- 镜头选项只来自 `item.type === "lens"`。
+- 胶片选项只来自 `item.type === "film"`。
+- 多选状态清晰可见。
+- 能一键清空某一栏选择。
+- 搜索框仍然保留。
+- 搜索框与三栏筛选同时生效。
+
+---
+
+### 验收标准
+
+- `/films` 汇总页卡片封面在右侧。
+- 有封面图时，左侧背景色接近封面主色。
+- 左侧背景与右侧封面边缘过渡自然。
+- 无封面图时卡片仍然美观。
+- 汇总页不出现编辑、删除、上传图片按钮。
+- 汇总页不展示全部图片，只展示封面。
+- 筛选区域包含相机、镜头、胶片三栏。
+- 每栏可以多选。
+- 只选相机时筛选正确。
+- 只选镜头时筛选正确。
+- 只选胶片时筛选正确。
+- 同时选择相机、镜头、胶片时按 AND 逻辑筛选。
+- 搜索关键字与三栏筛选可以同时生效。
+- 手机浏览器布局正常。
+
+---
+
+### 验证命令
+
+后端语法检查：
+
+```bash
+python3 -m py_compile backend/app/main.py backend/app/models.py backend/app/schemas.py backend/app/crud.py backend/app/routers/*.py
+```
+
+前端构建：
+
+```bash
+cd frontend
+npm run build
+```
+
+启动检查：
+
+```bash
+cd backend
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://192.168.32.123:8000 npm run dev -- -p 3010
+```
+
+---
+
+### 完成后输出
+
+```text
+调试 2 完成。
+修改文件：...
+筛选逻辑：...
+验证结果：...
+仍需人工检查的问题：...
+下一步：调试 3。
+```
+
+---
+
+## 调试 3：修复 DELETE 后空响应 JSON 解析错误
+
+### 目标
+
+修复删除操作后前端报错：
+
+```text
+Unexpected end of JSON input
+```
+
+以及：
+
+```text
+Failed to execute 'json' on 'Response': Unexpected end of JSON input
+```
+
+已知触发场景：
+
+- 删除 item 后出现 `Unexpected end of JSON input`。
+- 删除拍摄事项详情中的一张图片后出现 `Failed to execute 'json' on 'Response': Unexpected end of JSON input`。
+
+---
+
+### 原因判断
+
+后端 DELETE 接口返回 `204 No Content`。
+
+前端 `parseResponse` 当前会尝试按 JSON 解析响应体。
+
+当响应体为空时，调用：
+
+```ts
+response.json()
+```
+
+会抛出：
+
+```text
+Unexpected end of JSON input
+```
+
+---
+
+### 只允许做
+
+- 优先修复前端通用 API 解析逻辑。
+- 可以补充少量删除流程验证。
+- 不改变后端 DELETE 接口语义。
+- 不把 DELETE 改成返回假 JSON，除非前端无法统一修复。
+
+---
+
+### 实现要求
+
+更新：
+
+```text
+frontend/src/lib/api.ts
+```
+
+要求：
+
+- `204 No Content` 直接返回，不解析 JSON。
+- `Content-Length: 0` 或空响应体也不能报 JSON 解析错误。
+- 非 2xx 响应仍然要正常解析错误信息。
+- 兼容 JSON 响应与文本响应。
+
+建议逻辑：
+
+- 如果 `response.status === 204`，直接返回 `undefined as T`。
+- 否则根据 `content-type` 判断是否 JSON。
+- 对 JSON 响应可先读取 text，再判断是否为空：
+
+```ts
+const raw = await response.text();
+const payload = raw ? JSON.parse(raw) : undefined;
+```
+
+这样可以避免空 body 调用 `response.json()`。
+
+---
+
+### 验收标准
+
+- 删除 item 成功后不再出现 `Unexpected end of JSON input`。
+- 删除拍摄事项详情中的单张图片成功后不再出现 JSON 解析错误。
+- 删除拍摄事项成功后不出现 JSON 解析错误。
+- 删除 item 图片成功后不出现 JSON 解析错误。
+- 非 2xx API 错误仍能显示错误信息。
+- 前端构建通过。
+
+---
+
+### 验证命令
+
+前端构建：
+
+```bash
+cd frontend
+npm run build
+```
+
+人工验证：
+
+```text
+1. 删除一个 item。
+2. 删除一个 item 详情页图片。
+3. 删除一个拍摄事项详情页图片。
+4. 删除一个拍摄事项。
+5. 确认浏览器界面和 console 不再出现空 JSON 解析错误。
+```
+
+---
+
+### 完成后输出
+
+```text
+调试 3 完成。
+修改文件：...
+修复原因：...
+验证结果：...
+仍需人工检查的问题：...
+下一步：调试 4。
+```
+
+---
+
+## 调试 4：Dashboard 增加最近拍摄事项
+
+### 目标
+
+在 dashboard 页面增加“最近拍摄事项”展示，显示最近 5 条拍摄事项。
+
+---
+
+### 只允许做
+
+- 只调整 dashboard 相关展示和必要 API 调用。
+- 可以复用已有拍摄事项列表 API。
+- 不新增 dashboard 之外的大功能。
+- 不改变 `/films` 和 `/films/[id]` 的核心交互。
+
+---
+
+### 前端实现要求
+
+更新：
+
+```text
+frontend/src/app/dashboard/page.tsx
+```
+
+可能更新：
+
+```text
+frontend/src/lib/api.ts
+frontend/src/types/index.ts
+```
+
+要求：
+
+- 使用已有 `listShootingEntries`。
+- 请求最近 5 条：
+
+```text
+page=1
+page_size=5
+```
+
+- 展示标题、日期、地点、照片数量。
+- 每条可以点击进入 `/films/{id}`。
+- 无拍摄事项时显示空状态。
+- API 加载失败时不影响 dashboard 其他统计卡片显示。
+
+---
+
+### UI 要求
+
+- 与 dashboard 现有卡片风格保持一致。
+- 不做营销式大 hero。
+- 信息密度适中，方便快速扫描。
+- 最近拍摄事项应作为 dashboard 的一块功能区，而不是替代现有内容。
+
+---
+
+### 验收标准
+
+- `/dashboard` 显示“最近拍摄事项”。
+- 最多展示 5 条。
+- 最近拍摄事项按创建时间倒序。
+- 每条显示标题。
+- 每条显示日期或未填写日期。
+- 每条显示地点或未填写地点。
+- 每条显示照片数量。
+- 点击条目可以进入对应拍摄事项详情页。
+- 无拍摄事项时有空状态。
+- 拍摄事项 API 失败时 dashboard 其他内容仍可显示。
+- 前端构建通过。
+
+---
+
+### 验证命令
+
+前端构建：
+
+```bash
+cd frontend
+npm run build
+```
+
+人工验证：
+
+```text
+1. 打开 /dashboard。
+2. 确认最近拍摄事项显示最近 5 条。
+3. 点击其中一条进入 /films/{id}。
+```
+
+---
+
+### 完成后输出
+
+```text
+调试 4 完成。
+修改文件：...
+新增展示：...
+验证结果：...
+仍需人工检查的问题：...
+下一步：调试 5。
+```
+
+---
+
+## 调试 5：美化 Dashboard / Stats 四个统计卡片背景
+
+### 目标
+
+美化 dashboard 和 stats 界面的四个核心统计卡片背景：
+
+```text
+总资产估值
+相机数量
+镜头数量
+胶片库存
+```
+
+要求使用低饱和度、小清新、纯色背景。
+
+---
+
+### 只允许做
+
+- 只调整四个统计卡片的视觉样式。
+- 可以抽取共享样式配置。
+- 不改变统计数据来源和计算逻辑。
+- 不改变 dashboard / stats 的页面结构，除非为了复用样式做轻量整理。
+
+---
+
+### 视觉要求
+
+背景：
+
+- 使用纯色或非常轻微的单色层次。
+- 颜色低饱和度。
+- 不使用大面积渐变。
+- 不使用紫蓝重渐变。
+- 不使用深色重背景。
+- 不使用装饰性光斑、圆球、bokeh。
+
+建议色彩方向：
+
+```text
+总资产估值：低饱和度薄荷绿 / 青绿色
+相机数量：低饱和度天空蓝
+镜头数量：低饱和度薰衣草灰
+胶片库存：低饱和度暖黄 / 杏色
+```
+
+注意：
+
+- 文本对比度必须足够。
+- 卡片里的数字和标题不能被背景影响可读性。
+- 卡片边框、hover 状态要与现有设计系统协调。
+
+---
+
+### 前端实现要求
+
+更新：
+
+```text
+frontend/src/app/dashboard/page.tsx
+frontend/src/app/stats/page.tsx
+```
+
+如果两处代码重复明显，可以新增共享配置：
+
+```text
+frontend/src/lib/stat-card-styles.ts
+```
+
+或局部常量：
+
+```ts
+const statCardStyles = {
+  totalValue: "...",
+  cameraCount: "...",
+  lensCount: "...",
+  filmStock: "..."
+};
+```
+
+要求：
+
+- dashboard 和 stats 对应四张卡片颜色保持一致。
+- 不影响其他统计图表、列表、最近 items、最近拍摄事项。
+- 移动端布局正常。
+
+---
+
+### 验收标准
+
+- dashboard 的四个统计卡片使用新的低饱和度纯色背景。
+- stats 的四个统计卡片使用相同的背景方案。
+- 四个卡片颜色彼此有区分。
+- 文本可读性正常。
+- 数字、标题、辅助说明不溢出。
+- 页面没有大面积单一色系压迫感。
+- 前端构建通过。
+
+---
+
+### 验证命令
+
+前端构建：
+
+```bash
+cd frontend
+npm run build
+```
+
+人工验证：
+
+```text
+1. 打开 /dashboard。
+2. 打开 /stats。
+3. 检查四个统计卡片在桌面和手机宽度下的视觉效果。
+```
+
+---
+
+### 完成后输出
+
+```text
+调试 5 完成。
+修改文件：...
+视觉调整：...
+验证结果：...
+仍需人工检查的问题：...
+下一步：调试 6。
+```
