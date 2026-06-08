@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/jim-git-2000/camerahub-backend:latest
+    image: ghcr.io/jim-git-2000/camerahub-backend:${CAMERAHUB_VERSION:-latest}
     restart: unless-stopped
     environment:
       APP_NAME: CameraHub
@@ -12,7 +12,7 @@ services:
       - ./uploads:/app/uploads
 
   frontend:
-    image: ghcr.io/jim-git-2000/camerahub-frontend:latest
+    image: ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
     restart: unless-stopped
     depends_on:
       - backend
