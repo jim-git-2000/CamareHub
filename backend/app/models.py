@@ -84,6 +84,7 @@ class Photo(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     item_id: int = Field(foreign_key="items.id", index=True)
     file_path: str
+    thumbnail_path: str | None = None
     file_name: str
     content_type: str | None = None
     file_size: int | None = None
@@ -132,6 +133,7 @@ class ShootingEntryPhoto(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     entry_id: int = Field(foreign_key="shooting_entries.id", index=True)
     file_path: str
+    thumbnail_path: str | None = None
     file_name: str
     content_type: str | None = None
     file_size: int | None = None

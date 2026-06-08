@@ -37,6 +37,8 @@ VALID_SHOOTING_ENTRY_ITEM_ROLES = {"camera", "lens", "film", "other"}
 ALLOWED_PHOTO_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
+THUMBNAIL_MAX_SIZE = (640, 640)
+THUMBNAIL_QUALITY = 80
 SHOOTING_ENTRIES_UPLOAD_DIR = "shooting-entries"
 SHOOTING_ENTRY_FOLDER_FALLBACK = "shooting-entry"
 VALID_SORTS = {
@@ -245,6 +247,47 @@ def _upload_url(file_path: str) -> str:
     return f"/uploads/{relative_path.as_posix()}"
 
 
+def _thumbnail_relative_path(file_path: str) -> Path | None:
+    relative_path = _upload_relative_path(file_path)
+    if relative_path is None:
+        return None
+    return relative_path.parent / "thumbs" / f"{relative_path.stem}.webp"
+
+
+def _generate_thumbnail(source_path: Path, original_file_path: str) -> str | None:
+    thumbnail_relative_path = _thumbnail_relative_path(original_file_path)
+    if thumbnail_relative_path is None:
+        return None
+
+    thumbnail_path = _upload_dir() / thumbnail_relative_path
+    if thumbnail_path.exists():
+        return _stored_upload_path(thumbnail_relative_path)
+
+    try:
+        with Image.open(source_path) as image:
+            image = image.convert("RGB")
+            image.thumbnail(THUMBNAIL_MAX_SIZE)
+            thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
+            image.save(thumbnail_path, "WEBP", quality=THUMBNAIL_QUALITY, method=6)
+    except Exception:
+        return None
+
+    return _stored_upload_path(thumbnail_relative_path)
+
+
+def _ensure_photo_thumbnail(photo: Photo | ShootingEntryPhoto) -> None:
+    if photo.thumbnail_path:
+        return
+
+    relative_path = _upload_relative_path(photo.file_path)
+    if relative_path is None:
+        return
+
+    thumbnail_path = _generate_thumbnail(_upload_dir() / relative_path, photo.file_path)
+    if thumbnail_path is not None:
+        photo.thumbnail_path = thumbnail_path
+
+
 def _delete_upload_files(file_paths: list[str]) -> None:
     for file_path in file_paths:
         relative_path = _upload_relative_path(file_path)
@@ -257,26 +300,36 @@ def _delete_upload_files(file_paths: list[str]) -> None:
 
 
 def _delete_photo_files(photos: list[Photo]) -> None:
-    _delete_upload_files([photo.file_path for photo in photos])
+    _delete_upload_files([path for photo in photos for path in (photo.file_path, photo.thumbnail_path) if path])
 
 
 def _photo_url(photo: Photo) -> str:
     return _upload_url(photo.file_path)
 
 
+def _photo_thumbnail_url(photo: Photo) -> str | None:
+    return _upload_url(photo.thumbnail_path) if photo.thumbnail_path else None
+
+
 def _shooting_entry_photo_url(photo: ShootingEntryPhoto) -> str:
     return _upload_url(photo.file_path)
+
+
+def _shooting_entry_photo_thumbnail_url(photo: ShootingEntryPhoto) -> str | None:
+    return _upload_url(photo.thumbnail_path) if photo.thumbnail_path else None
 
 
 def _to_photo_read(photo: Photo) -> PhotoRead:
     data = photo.model_dump()
     data["url"] = _photo_url(photo)
+    data["thumbnail_url"] = _photo_thumbnail_url(photo)
     return PhotoRead.model_validate(data)
 
 
 def _to_shooting_entry_photo_read(photo: ShootingEntryPhoto) -> ShootingEntryPhotoRead:
     data = photo.model_dump()
     data["url"] = _shooting_entry_photo_url(photo)
+    data["thumbnail_url"] = _shooting_entry_photo_thumbnail_url(photo)
     return ShootingEntryPhotoRead.model_validate(data)
 
 
@@ -403,6 +456,26 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
     if changed:
         session.commit()
 
+    _ensure_shooting_entry_cover_thumbnail(session, entry.id)
+
+
+def _ensure_shooting_entry_cover_thumbnail(session: Session, entry_id: int | None) -> None:
+    if entry_id is None:
+        return
+
+    cover = session.exec(
+        select(ShootingEntryPhoto)
+        .where(ShootingEntryPhoto.entry_id == entry_id)
+        .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
+    ).first()
+    if cover is None or cover.thumbnail_path:
+        return
+
+    _ensure_photo_thumbnail(cover)
+    if cover.thumbnail_path:
+        session.add(cover)
+        session.commit()
+
 
 def _read_shooting_entry_photos(
     session: Session,
@@ -458,7 +531,7 @@ def _set_shooting_entry_items(
 
 
 def _delete_shooting_entry_photo_files(photos: list[ShootingEntryPhoto]) -> None:
-    _delete_upload_files([photo.file_path for photo in photos])
+    _delete_upload_files([path for photo in photos for path in (photo.file_path, photo.thumbnail_path) if path])
 
 
 def _delete_shooting_entry_folder(entry: ShootingEntry) -> None:
@@ -724,6 +797,7 @@ def create_photo(
         content_type=content_type,
         file_size=len(content),
     )
+    _ensure_photo_thumbnail(photo)
     session.add(photo)
     session.commit()
     session.refresh(photo)
@@ -900,6 +974,9 @@ def create_shooting_entry_photo(
     if entry is None:
         return None
 
+    existing_photo_count = session.exec(
+        select(func.count(ShootingEntryPhoto.id)).where(ShootingEntryPhoto.entry_id == entry_id)
+    ).one()
     extension = _validate_photo_upload(file_name, content_type, content)
     stored_name = f"{uuid4().hex}.{extension}"
     relative_path = _shooting_entry_relative_dir(entry, create=True) / stored_name
@@ -914,6 +991,8 @@ def create_shooting_entry_photo(
         file_size=len(content),
         dominant_color=calculate_dominant_color(content),
     )
+    if existing_photo_count == 0:
+        _ensure_photo_thumbnail(photo)
     session.add(photo)
     session.commit()
     session.refresh(photo)
@@ -951,6 +1030,7 @@ def set_shooting_entry_cover_photo(session: Session, photo_id: int) -> ShootingE
     ).all()
 
     photo.sort_order = 0
+    _ensure_photo_thumbnail(photo)
     session.add(photo)
     next_order = 1
     for item in photos:

@@ -145,12 +145,14 @@ export type PhotoRead = {
   id: number;
   item_id: number;
   file_path: string;
+  thumbnail_path?: string | null;
   file_name: string;
   content_type?: string | null;
   file_size?: number | null;
   sort_order: number;
   created_at: string;
   url: string;
+  thumbnail_url?: string | null;
 };
 
 export type TransactionRead = {
@@ -224,6 +226,7 @@ export type ShootingEntryPhotoRead = {
   id: number;
   entry_id: number;
   file_path: string;
+  thumbnail_path?: string | null;
   file_name: string;
   content_type?: string | null;
   file_size?: number | null;
@@ -231,6 +234,7 @@ export type ShootingEntryPhotoRead = {
   sort_order: number;
   created_at: string;
   url: string;
+  thumbnail_url?: string | null;
 };
 
 export type ShootingEntryRead = {

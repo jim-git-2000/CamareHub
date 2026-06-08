@@ -43,8 +43,12 @@ type RgbColor = {
 
 const fallbackColor: RgbColor = { r: 219, g: 228, b: 219 };
 
-function photoSrc(photo: ShootingEntryPhotoRead): string {
-  return photo.url.startsWith("http") ? photo.url : `${API_BASE_URL}${photo.url}`;
+function thumbnailSrc(photo: ShootingEntryPhotoRead): string | null {
+  if (!photo.thumbnail_url) {
+    return null;
+  }
+
+  return photo.thumbnail_url.startsWith("http") ? photo.thumbnail_url : `${API_BASE_URL}${photo.thumbnail_url}`;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -165,7 +169,7 @@ function MultiItemFilter({
 
 function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
   const cover = entryCover(entry);
-  const coverUrl = cover ? photoSrc(cover) : null;
+  const coverUrl = cover ? thumbnailSrc(cover) : null;
   const color = parseColor(cover?.dominant_color);
   const shownLinks = entry.item_links.slice(0, 4);
   const hiddenCount = Math.max(0, entry.item_links.length - shownLinks.length);
@@ -180,7 +184,7 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
       >
         <div className="grid min-h-52 gap-0 md:grid-cols-[minmax(0,1fr)_340px]">
           <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-56">
-            {cover ? (
+            {coverUrl ? (
               <div className="relative h-full">
                 <div
                   className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-72 md:block"
@@ -190,7 +194,7 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
                 />
                 <img
                   src={coverUrl ?? ""}
-                  alt={cover.file_name}
+                  alt={cover?.file_name ?? entry.title}
                   className="h-full w-full object-cover"
                 />
               </div>

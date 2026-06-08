@@ -146,12 +146,14 @@ class PhotoRead(SQLModel):
     id: int
     item_id: int
     file_path: str
+    thumbnail_path: str | None = None
     file_name: str
     content_type: str | None = None
     file_size: int | None = None
     sort_order: int
     created_at: datetime
     url: str
+    thumbnail_url: str | None = None
 
 
 class StatsSummaryRead(SQLModel):
@@ -199,6 +201,7 @@ class ShootingEntryPhotoRead(SQLModel):
     id: int
     entry_id: int
     file_path: str
+    thumbnail_path: str | None = None
     file_name: str
     content_type: str | None = None
     file_size: int | None = None
@@ -206,6 +209,7 @@ class ShootingEntryPhotoRead(SQLModel):
     sort_order: int
     created_at: datetime
     url: str
+    thumbnail_url: str | None = None
 
 
 class ShootingEntryBase(SQLModel):

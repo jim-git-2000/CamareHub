@@ -161,8 +161,12 @@ function formatDate(value: string | null | undefined): string {
   return value ? value.slice(0, 10) : "未填写日期";
 }
 
-function photoSrc(photo: ShootingEntryPhotoRead): string {
-  return photo.url.startsWith("http") ? photo.url : `${API_BASE_URL}${photo.url}`;
+function thumbnailSrc(photo: ShootingEntryPhotoRead): string | null {
+  if (!photo.thumbnail_url) {
+    return null;
+  }
+
+  return photo.thumbnail_url.startsWith("http") ? photo.thumbnail_url : `${API_BASE_URL}${photo.thumbnail_url}`;
 }
 
 function entryCover(entry: ShootingEntryRead): ShootingEntryPhotoRead | null {
@@ -244,6 +248,7 @@ function RecentItemCard({ item, index }: { item: ItemRead; index: number }) {
 
 function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
   const cover = entryCover(entry);
+  const coverUrl = cover ? thumbnailSrc(cover) : null;
   const color = parseColor(cover?.dominant_color);
   const foreground = readableTextColor(color);
   const mutedForeground = mutedTextColor(color);
@@ -256,7 +261,7 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
       >
         <div className="grid min-h-[120px] gap-0 md:grid-cols-[minmax(0,1fr)_160px]">
           <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-[120px]">
-            {cover ? (
+            {coverUrl ? (
               <div className="relative h-full">
                 <div
                   className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-32 md:block"
@@ -264,7 +269,7 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
                     background: `linear-gradient(90deg, ${colorToCss(color)} 0%, ${colorToCss(color, 0.98)} 22%, ${colorToCss(color, 0.72)} 50%, ${colorToCss(color, 0.28)} 78%, transparent 100%)`
                   }}
                 />
-                <img src={photoSrc(cover)} alt={cover.file_name} className="h-full w-full object-cover" />
+                <img src={coverUrl} alt={cover?.file_name ?? entry.title} className="h-full w-full object-cover" />
               </div>
             ) : (
               <div className="flex h-full min-h-[120px] items-center justify-center" style={{ color: mutedForeground }}>

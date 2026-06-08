@@ -50,9 +50,17 @@ def _ensure_sqlite_columns() -> None:
         return
 
     with engine.begin() as connection:
-        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(shooting_entry_photos)").fetchall()}
-        if "dominant_color" not in columns:
+        shooting_entry_photo_columns = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info(shooting_entry_photos)").fetchall()
+        }
+        if "dominant_color" not in shooting_entry_photo_columns:
             connection.exec_driver_sql("ALTER TABLE shooting_entry_photos ADD COLUMN dominant_color VARCHAR")
+        if "thumbnail_path" not in shooting_entry_photo_columns:
+            connection.exec_driver_sql("ALTER TABLE shooting_entry_photos ADD COLUMN thumbnail_path VARCHAR")
+
+        photo_columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(photos)").fetchall()}
+        if "thumbnail_path" not in photo_columns:
+            connection.exec_driver_sql("ALTER TABLE photos ADD COLUMN thumbnail_path VARCHAR")
 
 
 def check_database_connection() -> bool:

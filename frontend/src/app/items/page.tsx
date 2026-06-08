@@ -169,11 +169,11 @@ function itemIcon(type: string) {
 }
 
 function photoSrc(photo: PhotoRead | null | undefined): string | null {
-  if (!photo) {
+  if (!photo?.thumbnail_url) {
     return null;
   }
 
-  return photo.url.startsWith("http") ? photo.url : `${API_BASE_URL}${photo.url}`;
+  return photo.thumbnail_url.startsWith("http") ? photo.thumbnail_url : `${API_BASE_URL}${photo.thumbnail_url}`;
 }
 
 async function fetchAllFilteredItems(filters: ItemFilters): Promise<ItemRead[]> {
