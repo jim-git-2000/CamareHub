@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { getHealth } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Nav } from "@/components/nav";
 
 type ApiState = "loading" | "online" | "error";
@@ -11,6 +13,35 @@ type ApiState = "loading" | "online" | "error";
 type AppShellProps = {
   children: ReactNode;
 };
+
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.86 8.35 6.84 9.71.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.9-2.51.47-3.16-.63-3.36-1.21-.11-.3-.6-1.21-1.03-1.46-.35-.19-.85-.66-.01-.67.79-.01 1.35.75 1.54 1.06.9 1.55 2.34 1.11 2.91.85.09-.67.35-1.11.64-1.37-2.22-.26-4.55-1.14-4.55-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.25 9.25 0 0 1 12 6.97c.85 0 1.7.12 2.5.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.8-4.57 5.06.36.32.68.93.68 1.89 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.08 10.08 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
+    </svg>
+  );
+}
+
+function HeaderActions({ apiState, apiMessage, compact = false }: { apiState: ApiState; apiMessage: string; compact?: boolean }) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="设置">
+        <Link href="/settings" aria-label="设置">
+          <Settings className="h-4 w-4" />
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 px-2.5">
+        <a href="https://github.com/jim-git-2000/CamareHub" target="_blank" rel="noreferrer" aria-label="Star CameraHub on GitHub">
+          <GitHubMark className="h-4 w-4" />
+          <span>Star</span>
+        </a>
+      </Button>
+      <Badge variant={apiState === "error" ? "destructive" : "secondary"} title={apiMessage}>
+        {apiState === "loading" ? (compact ? "Loading" : "API loading") : apiState === "online" ? (compact ? "Online" : "API online") : "API error"}
+      </Badge>
+    </div>
+  );
+}
 
 export function AppShell({ children }: AppShellProps) {
   const [apiState, setApiState] = useState<ApiState>("loading");
@@ -50,14 +81,14 @@ export function AppShell({ children }: AppShellProps) {
             <Link href="/" className="text-base font-semibold">
               CameraHub
             </Link>
-            <Badge variant={apiState === "error" ? "destructive" : "secondary"} className="md:hidden">
-              {apiState === "loading" ? "Loading" : apiState === "online" ? "Online" : "API error"}
-            </Badge>
+            <div className="md:hidden">
+              <HeaderActions apiState={apiState} apiMessage={apiMessage} compact />
+            </div>
           </div>
           <Nav />
-          <Badge variant={apiState === "error" ? "destructive" : "secondary"} className="hidden md:inline-flex" title={apiMessage}>
-            {apiState === "loading" ? "API loading" : apiState === "online" ? "API online" : "API error"}
-          </Badge>
+          <div className="hidden md:block">
+            <HeaderActions apiState={apiState} apiMessage={apiMessage} />
+          </div>
         </div>
       </header>
       {apiState === "error" ? (

@@ -9,8 +9,7 @@ export const navItems: NavItem[] = [
   { href: "/dashboard", label: "概览" },
   { href: "/items", label: "器材" },
   { href: "/films", label: "照片" },
-  { href: "/stats", label: "统计" },
-  { href: "/settings", label: "设置" }
+  { href: "/stats", label: "统计" }
 ];
 
 function isActive(pathname: string, href: string) {
