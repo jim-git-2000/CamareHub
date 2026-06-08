@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Edit, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   API_BASE_URL,
   ApiError,
@@ -23,14 +22,13 @@ import {
   deletePhoto,
   getItem,
   listItemPhotos,
-  listItemTransactions,
   uploadItemPhoto
 } from "@/lib/api";
-import type { ItemRead, PhotoRead, TransactionRead } from "@/types";
+import type { ItemRead, PhotoRead } from "@/types";
 
 type DetailState =
   | { status: "loading" }
-  | { status: "ready"; item: ItemRead; photos: PhotoRead[]; transactions: TransactionRead[] }
+  | { status: "ready"; item: ItemRead; photos: PhotoRead[] }
   | { status: "error"; message: string };
 
 type DetailRow = {
@@ -38,11 +36,6 @@ type DetailRow = {
   value: string | number | boolean | null | undefined;
 };
 
-const transactionGroups = [
-  { key: "purchase", title: "购买记录", types: ["purchase", "buy", "bought", "acquire", "acquisition"] },
-  { key: "repair", title: "维修记录", types: ["repair", "maintenance", "service"] },
-  { key: "sale", title: "出售记录", types: ["sale", "sell", "sold"] }
-];
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxPhotoSizeBytes = 10 * 1024 * 1024;
 
@@ -214,35 +207,6 @@ function DetailGrid({ rows }: { rows: DetailRow[] }) {
   );
 }
 
-function TransactionTable({ transactions }: { transactions: TransactionRead[] }) {
-  if (transactions.length === 0) {
-    return <div className="rounded-md border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">暂无记录</div>;
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>日期</TableHead>
-          <TableHead>金额</TableHead>
-          <TableHead>对象</TableHead>
-          <TableHead>备注</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {transactions.map((transaction) => (
-          <TableRow key={transaction.id}>
-            <TableCell>{formatDate(transaction.date)}</TableCell>
-            <TableCell>{formatCurrency(transaction.amount, transaction.currency)}</TableCell>
-            <TableCell>{formatValue(transaction.vendor)}</TableCell>
-            <TableCell className="max-w-64 break-words">{formatValue(transaction.notes)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -267,10 +231,10 @@ export default function ItemDetailPage() {
 
     setState({ status: "loading" });
 
-    Promise.all([getItem(itemId), listItemPhotos(itemId), listItemTransactions(itemId)])
-      .then(([item, photos, transactions]) => {
+    Promise.all([getItem(itemId), listItemPhotos(itemId)])
+      .then(([item, photos]) => {
         if (active) {
-          setState({ status: "ready", item, photos, transactions });
+          setState({ status: "ready", item, photos });
         }
       })
       .catch((error: unknown) => {
@@ -290,19 +254,6 @@ export default function ItemDetailPage() {
       active = false;
     };
   }, [itemId]);
-
-  const groupedTransactions = useMemo(() => {
-    if (state.status !== "ready") {
-      return new Map<string, TransactionRead[]>();
-    }
-
-    return new Map(
-      transactionGroups.map((group) => [
-        group.key,
-        state.transactions.filter((transaction) => group.types.includes(transaction.type.toLowerCase()))
-      ])
-    );
-  }, [state]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -523,19 +474,6 @@ export default function ItemDetailPage() {
           )}
         </CardContent>
       </Card>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        {transactionGroups.map((group) => (
-          <Card key={group.key}>
-            <CardHeader>
-              <CardTitle className="text-base">{group.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TransactionTable transactions={groupedTransactions.get(group.key) ?? []} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {customRows.length > 0 ? (
         <Card>

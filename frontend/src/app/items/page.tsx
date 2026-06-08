@@ -86,10 +86,14 @@ function getCurrencyFormatter(currency: string): Intl.NumberFormat {
 
 function formatCurrency(value: number | null | undefined, currency: string): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "未估值";
+    return "未填写";
   }
 
   return getCurrencyFormatter(currency).format(value);
+}
+
+function priceSummary(item: ItemRead): string {
+  return `购买 ${formatCurrency(item.purchase_price, item.currency)} / 估值 ${formatCurrency(item.current_value, item.currency)}`;
 }
 
 function formatNumber(value: number | null | undefined, suffix = ""): string | null {
@@ -248,8 +252,7 @@ function ItemCard({ item, photo }: { item: ItemRead; photo?: PhotoRead | null })
 
           <div className="mt-auto space-y-2">
             <div>
-              <div className="text-xs text-muted-foreground">当前估值</div>
-              <div className="mt-0.5 truncate text-sm font-medium">{formatCurrency(item.current_value, item.currency)}</div>
+              <div className="break-words text-sm font-medium leading-5">{priceSummary(item)}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">关键参数</div>

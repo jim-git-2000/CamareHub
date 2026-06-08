@@ -234,11 +234,27 @@ export function ItemForm({ mode, initialItem, onSubmit }: ItemFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [currentValueManuallyEdited, setCurrentValueManuallyEdited] = useState(
+    () => mode === "edit" && initialItem?.current_value !== null && initialItem?.current_value !== undefined
+  );
 
   const title = useMemo(() => (mode === "create" ? "新增器材" : "编辑器材"), [mode]);
 
   const setBaseValue = (key: keyof BaseValues, value: string) => {
     setBase((current) => ({ ...current, [key]: value }));
+  };
+
+  const setPurchasePrice = (value: string) => {
+    setBase((current) => ({
+      ...current,
+      purchase_price: value,
+      current_value: currentValueManuallyEdited ? current.current_value : value
+    }));
+  };
+
+  const setCurrentValue = (value: string) => {
+    setCurrentValueManuallyEdited(true);
+    setBaseValue("current_value", value);
   };
 
   const setCameraValue = (key: keyof CameraValues, value: string) => {
@@ -411,10 +427,10 @@ export function ItemForm({ mode, initialItem, onSubmit }: ItemFormProps) {
             <Input type="date" value={base.purchase_date} onChange={(event) => setBaseValue("purchase_date", event.target.value)} />
           </Field>
           <Field label="购买价格">
-            <Input type="number" step="0.01" value={base.purchase_price} onChange={(event) => setBaseValue("purchase_price", event.target.value)} />
+            <Input type="number" step="0.01" value={base.purchase_price} onChange={(event) => setPurchasePrice(event.target.value)} />
           </Field>
-          <Field label="当前估值">
-            <Input type="number" step="0.01" value={base.current_value} onChange={(event) => setBaseValue("current_value", event.target.value)} />
+          <Field label="当前估值（可选手动调整）">
+            <Input type="number" step="0.01" value={base.current_value} onChange={(event) => setCurrentValue(event.target.value)} />
           </Field>
           <Field label="币种">
             <Input value={base.currency} onChange={(event) => setBaseValue("currency", event.target.value.toUpperCase())} />

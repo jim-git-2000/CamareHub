@@ -76,6 +76,25 @@ def _item_fields(payload: ItemCreate | ItemUpdate) -> dict:
     return {key: value for key, value in data.items() if key not in {"camera", "lens", "film"}}
 
 
+def _create_item_fields(payload: ItemCreate) -> dict:
+    data = _item_fields(payload)
+    if data.get("purchase_price") is not None and data.get("current_value") is None:
+        data["current_value"] = data["purchase_price"]
+    return data
+
+
+def _update_item_fields(item: Item, payload: ItemUpdate) -> dict:
+    data = _item_fields(payload)
+    if (
+        "current_value" in data
+        and data["current_value"] is None
+        and item.current_value is None
+        and data.get("purchase_price") is not None
+    ):
+        data["current_value"] = data["purchase_price"]
+    return data
+
+
 def _extension_model(item_type: str):
     return {"camera": Camera, "lens": Lens, "film": Film}.get(item_type)
 
@@ -269,7 +288,7 @@ def _delete_shooting_entry_photo_files(photos: list[ShootingEntryPhoto]) -> None
 
 def create_item(session: Session, payload: ItemCreate) -> ItemRead:
     _validate_item_type(payload.type)
-    item = Item(**_item_fields(payload))
+    item = Item(**_create_item_fields(payload))
     session.add(item)
     session.commit()
     session.refresh(item)
@@ -340,7 +359,7 @@ def update_item(session: Session, item_id: int, payload: ItemUpdate) -> ItemRead
     if item is None:
         return None
 
-    item_data = _item_fields(payload)
+    item_data = _update_item_fields(item, payload)
     next_type = item_data.get("type", item.type)
     _validate_item_type(next_type)
 
