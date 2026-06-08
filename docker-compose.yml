@@ -1,0 +1,20 @@
+services:
+  backend:
+    image: ghcr.io/jim-git-2000/camerahub-backend:latest
+    restart: unless-stopped
+    environment:
+      APP_NAME: CameraHub
+      DATABASE_URL: sqlite:////app/data/gear.db
+      UPLOAD_DIR: /app/uploads
+      BACKEND_CORS_ORIGINS: http://localhost:3010,http://127.0.0.1:3010
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+
+  frontend:
+    image: ghcr.io/jim-git-2000/camerahub-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3010:3010"

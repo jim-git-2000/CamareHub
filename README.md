@@ -10,7 +10,7 @@ CameraHub 是一个本地运行的个人摄影器材管理系统，用于管理�
 - Backend: Python, FastAPI, SQLModel, SQLite, uv, Uvicorn
 - Storage: SQLite database and local uploads directory
 
-未引入 Docker、PWA、PostgreSQL、Redis、MinIO。
+未引入 PWA、PostgreSQL、Redis、MinIO。
 
 ## 目录结构
 
@@ -69,6 +69,77 @@ http://192.168.32.123:3010
 ```
 
 如果只在虚拟机本机浏览器访问，也可以把 API 地址设为 `http://localhost:8000` 并访问 `http://localhost:3010`。
+
+## Docker 部署方式
+
+开发机不需要安装 Docker。开发机只负责修改代码、提交并 push 到 GitHub，然后在 GitHub Actions 手动发布 GHCR 镜像。
+
+服务器需要安装 Docker 和 Docker Compose plugin。服务器不需要 clone 仓库，只需要一份 `docker-compose.yml`，并且不执行 build。
+
+手动发布镜像：
+
+```text
+1. push 代码到 GitHub。
+2. 打开 GitHub Actions。
+3. 选择 docker-publish。
+4. 点击 Run workflow。
+5. 等待 GHCR 镜像发布完成。
+6. 服务器执行 docker compose pull && docker compose up -d。
+```
+
+如果仓库或 GHCR package 是私有的，服务器需要先登录：
+
+```bash
+docker login ghcr.io
+```
+
+服务器最小目录：
+
+```text
+camerahub/
+  docker-compose.yml
+  data/
+  uploads/
+```
+
+服务器启动：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+默认访问地址：
+
+```text
+http://服务器IP:3010
+```
+
+默认端口映射：
+
+```yaml
+ports:
+  - "3010:3010"
+```
+
+左侧是宿主机端口，可以改；右侧是前端容器端口，保持 `3010`。例如服务器 `3010` 被占用时：
+
+```yaml
+ports:
+  - "8080:3010"
+```
+
+访问地址变为：
+
+```text
+http://服务器IP:8080
+```
+
+备份：
+
+```bash
+tar -czf camerahub-backup-$(date +%Y%m%d).tar.gz data uploads
+```
 
 ## 环境变量
 
