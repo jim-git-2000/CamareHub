@@ -19,10 +19,14 @@ import type { FilmStockBucket, StatsBucket, StatsSummary } from "@/types";
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 const CHART_HEIGHT = 320;
 const LENS_CHART_HEIGHT = 276;
-const lensZoomTypeStyles = [
-  { backgroundColor: "#e7f0ea", borderColor: "#bdd7c6" },
-  { backgroundColor: "#f0e9dc", borderColor: "#dac8a9" }
-];
+type ChartTheme = {
+  textColor: string;
+  mutedTextColor: string;
+  borderColor: string;
+  splitLineColor: string;
+  tooltipBackground: string;
+  tooltipTextColor: string;
+};
 
 type StatsState =
   | { status: "loading" }
@@ -43,11 +47,64 @@ const currencyFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 0
 });
 
-function pieOption(title: string, data: Array<{ name: string; value: number }>): EChartsOption {
+function chartTheme(isDark: boolean): ChartTheme {
+  return isDark
+    ? {
+        textColor: "#f4f4f5",
+        mutedTextColor: "#d4d4d8",
+        borderColor: "#3f3f46",
+        splitLineColor: "rgba(212, 212, 216, 0.18)",
+        tooltipBackground: "#18181b",
+        tooltipTextColor: "#fafafa"
+      }
+    : {
+        textColor: "#18181b",
+        mutedTextColor: "#52525b",
+        borderColor: "#e4e4e7",
+        splitLineColor: "rgba(82, 82, 91, 0.16)",
+        tooltipBackground: "#ffffff",
+        tooltipTextColor: "#18181b"
+      };
+}
+
+function lensZoomTypeStyles(isDark: boolean) {
+  return isDark
+    ? [
+        {
+          backgroundColor: "rgba(39, 39, 42, 0.98)",
+          borderColor: "rgba(82, 82, 91, 0.95)",
+          color: "#f4f4f5"
+        },
+        {
+          backgroundColor: "rgba(63, 42, 18, 0.96)",
+          borderColor: "rgba(146, 102, 36, 0.9)",
+          color: "#fef3c7"
+        }
+      ]
+    : [
+        { backgroundColor: "#e7f0ea", borderColor: "#bdd7c6", color: "#1f2937" },
+        { backgroundColor: "#f0e9dc", borderColor: "#dac8a9", color: "#1f2937" }
+      ];
+}
+
+function pieOption(title: string, data: Array<{ name: string; value: number }>, theme: ChartTheme): EChartsOption {
   return {
     color: chartPalette,
-    tooltip: { trigger: "item" },
-    legend: { bottom: 0, type: "scroll" },
+    textStyle: { color: theme.textColor },
+    tooltip: {
+      trigger: "item",
+      backgroundColor: theme.tooltipBackground,
+      borderColor: theme.borderColor,
+      textStyle: { color: theme.tooltipTextColor }
+    },
+    legend: {
+      bottom: 0,
+      type: "scroll",
+      textStyle: { color: theme.mutedTextColor },
+      pageTextStyle: { color: theme.mutedTextColor },
+      pageIconColor: theme.mutedTextColor,
+      pageIconInactiveColor: theme.borderColor
+    },
     series: [
       {
         name: title,
@@ -55,23 +112,39 @@ function pieOption(title: string, data: Array<{ name: string; value: number }>):
         radius: ["42%", "70%"],
         center: ["50%", "42%"],
         avoidLabelOverlap: true,
+        label: { color: theme.textColor },
+        labelLine: { lineStyle: { color: theme.mutedTextColor } },
         data
       }
     ]
   };
 }
 
-function barOption(name: string, labels: string[], values: number[]): EChartsOption {
+function barOption(name: string, labels: string[], values: number[], theme: ChartTheme): EChartsOption {
   return {
     color: chartPalette,
-    tooltip: { trigger: "axis" },
+    textStyle: { color: theme.textColor },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: theme.tooltipBackground,
+      borderColor: theme.borderColor,
+      textStyle: { color: theme.tooltipTextColor }
+    },
     grid: { left: 40, right: 20, top: 24, bottom: 48 },
     xAxis: {
       type: "category",
       data: labels,
-      axisLabel: { interval: 0, rotate: 0 }
+      axisLabel: { interval: 0, rotate: 0, color: theme.mutedTextColor },
+      axisLine: { lineStyle: { color: theme.borderColor } },
+      axisTick: { lineStyle: { color: theme.borderColor } }
     },
-    yAxis: { type: "value", minInterval: 1 },
+    yAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: theme.mutedTextColor },
+      axisLine: { lineStyle: { color: theme.borderColor } },
+      splitLine: { lineStyle: { color: theme.splitLineColor } }
+    },
     series: [
       {
         name,
@@ -85,6 +158,23 @@ function barOption(name: string, labels: string[], values: number[]): EChartsOpt
       }
     ]
   };
+}
+
+function useDarkModeValue() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setIsDark(root.classList.contains("dark"));
+
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
 }
 
 function isEmptyStats(state: Extract<StatsState, { status: "ready" }>): boolean {
@@ -164,13 +254,16 @@ function ChartCard({
 function LensStatsCard({
   zoomType,
   focalCategory,
-  option
+  option,
+  isDark
 }: {
   zoomType: StatsBucket[];
   focalCategory: StatsBucket[];
   option: EChartsOption;
+  isDark: boolean;
 }) {
   const empty = zoomType.every((item) => item.count === 0) && focalCategory.every((item) => item.count === 0);
+  const zoomTypeStyles = lensZoomTypeStyles(isDark);
 
   return (
     <Card>
@@ -191,9 +284,9 @@ function LensStatsCard({
                 <div
                   key={item.key}
                   className="flex h-8 items-center justify-center gap-2 rounded-md border px-2.5 text-sm"
-                  style={lensZoomTypeStyles[index % lensZoomTypeStyles.length]}
+                  style={zoomTypeStyles[index % zoomTypeStyles.length]}
                 >
-                  <span className="text-xs font-semibold text-muted-foreground">{item.label}</span>
+                  <span className="text-xs font-semibold text-current/90">{item.label}</span>
                   <span className="font-semibold tracking-normal">{item.count}</span>
                 </div>
               ))}
@@ -208,6 +301,7 @@ function LensStatsCard({
 
 export default function StatsPage() {
   const [state, setState] = useState<StatsState>({ status: "loading" });
+  const isDark = useDarkModeValue();
 
   useEffect(() => {
     let active = true;
@@ -241,27 +335,33 @@ export default function StatsPage() {
       return null;
     }
 
+    const theme = chartTheme(isDark);
+
     return {
       brand: pieOption(
         "品牌占比",
-        state.byBrand.map((item) => ({ name: item.label, value: item.count }))
+        state.byBrand.map((item) => ({ name: item.label, value: item.count })),
+        theme
       ),
       type: pieOption(
         "类型占比",
-        state.byType.map((item) => ({ name: item.label, value: item.count }))
+        state.byType.map((item) => ({ name: item.label, value: item.count })),
+        theme
       ),
       lensCategory: barOption(
         "镜头数量",
         state.lensFocalCategory.map((item) => item.label),
-        state.lensFocalCategory.map((item) => item.count)
+        state.lensFocalCategory.map((item) => item.count),
+        theme
       ),
       film: barOption(
         "库存数量",
         state.filmStock.map((item) => item.label),
-        state.filmStock.map((item) => item.quantity)
+        state.filmStock.map((item) => item.quantity),
+        theme
       )
     };
-  }, [state]);
+  }, [isDark, state]);
 
   if (state.status === "loading") {
     return (
@@ -338,6 +438,7 @@ export default function StatsPage() {
             zoomType={state.lensZoomType}
             focalCategory={state.lensFocalCategory}
             option={chartOptions?.lensCategory ?? {}}
+            isDark={isDark}
           />
           <ChartCard
             title="胶片库存"

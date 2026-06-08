@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -24,28 +25,91 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+    --stat-total-bg: #d8eee5;
+    --stat-total-border: #9fcfbb;
+    --stat-total-fg: #17392f;
+    --stat-total-icon: #2d7a65;
+    --stat-camera-bg: #d8eaf4;
+    --stat-camera-border: #9fc6dc;
+    --stat-camera-fg: #17354a;
+    --stat-camera-icon: #2d6f91;
+    --stat-lens-bg: #e4def1;
+    --stat-lens-border: #beb0dc;
+    --stat-lens-fg: #33284d;
+    --stat-lens-icon: #6a5798;
+    --stat-film-bg: #f2e4c8;
+    --stat-film-border: #d9bd83;
+    --stat-film-fg: #4a3517;
+    --stat-film-icon: #946f29;
+    --recent-item-1-bg: #ead8d2;
+    --recent-item-1-border: #cda99e;
+    --recent-item-1-fg: #442b24;
+    --recent-item-2-bg: #d9e3d0;
+    --recent-item-2-border: #acc49d;
+    --recent-item-2-fg: #263b22;
+    --recent-item-3-bg: #d4e4df;
+    --recent-item-3-border: #9ebfb4;
+    --recent-item-3-fg: #203b35;
+    --recent-item-4-bg: #e7d9c4;
+    --recent-item-4-border: #c9aa79;
+    --recent-item-4-fg: #433019;
+    --recent-item-5-bg: #dedbd1;
+    --recent-item-5-border: #bbb4a4;
+    --recent-item-5-fg: #353026;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    color-scheme: dark;
+    --background: 240 6% 10%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 240 5% 13%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 240 5% 13%;
     --popover-foreground: 210 40% 98%;
     --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary-foreground: 240 6% 10%;
+    --secondary: 240 4% 18%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 240 4% 18%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 240 4% 20%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 240 4% 22%;
+    --input: 240 4% 24%;
     --ring: 212.7 26.8% 83.9%;
+    --stat-total-bg: #12362e;
+    --stat-total-border: #26715e;
+    --stat-total-fg: #d7f4eb;
+    --stat-total-icon: #74d6bd;
+    --stat-camera-bg: #12304a;
+    --stat-camera-border: #2a6e9b;
+    --stat-camera-fg: #d9efff;
+    --stat-camera-icon: #81c9f7;
+    --stat-lens-bg: #2c2444;
+    --stat-lens-border: #6e5da0;
+    --stat-lens-fg: #eee7ff;
+    --stat-lens-icon: #bba9f0;
+    --stat-film-bg: #3a2a12;
+    --stat-film-border: #8d6927;
+    --stat-film-fg: #ffe9bd;
+    --stat-film-icon: #e7bd61;
+    --recent-item-1-bg: #3a2624;
+    --recent-item-1-border: #8f5c55;
+    --recent-item-1-fg: #ffe2dc;
+    --recent-item-2-bg: #24331f;
+    --recent-item-2-border: #5f8752;
+    --recent-item-2-fg: #e1f7d8;
+    --recent-item-3-bg: #1f3530;
+    --recent-item-3-border: #5d8f83;
+    --recent-item-3-fg: #d8f5ee;
+    --recent-item-4-bg: #392b18;
+    --recent-item-4-border: #8a6730;
+    --recent-item-4-fg: #ffe7c0;
+    --recent-item-5-bg: #302e29;
+    --recent-item-5-border: #777064;
+    --recent-item-5-fg: #eee8dc;
   }
 
   * {
@@ -54,5 +118,13 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    color-scheme: inherit;
   }
 }

@@ -9,29 +9,29 @@ type ToneStyle = {
 
 export const statCardStyles: Record<StatCardTone, ToneStyle> = {
   totalValue: {
-    style: { backgroundColor: "#d8eee5", borderColor: "#9fcfbb", color: "#17392f" },
-    iconStyle: { color: "#2d7a65" }
+    style: { backgroundColor: "var(--stat-total-bg)", borderColor: "var(--stat-total-border)", color: "var(--stat-total-fg)" },
+    iconStyle: { color: "var(--stat-total-icon)" }
   },
   cameraCount: {
-    style: { backgroundColor: "#d8eaf4", borderColor: "#9fc6dc", color: "#17354a" },
-    iconStyle: { color: "#2d6f91" }
+    style: { backgroundColor: "var(--stat-camera-bg)", borderColor: "var(--stat-camera-border)", color: "var(--stat-camera-fg)" },
+    iconStyle: { color: "var(--stat-camera-icon)" }
   },
   lensCount: {
-    style: { backgroundColor: "#e4def1", borderColor: "#beb0dc", color: "#33284d" },
-    iconStyle: { color: "#6a5798" }
+    style: { backgroundColor: "var(--stat-lens-bg)", borderColor: "var(--stat-lens-border)", color: "var(--stat-lens-fg)" },
+    iconStyle: { color: "var(--stat-lens-icon)" }
   },
   filmStock: {
-    style: { backgroundColor: "#f2e4c8", borderColor: "#d9bd83", color: "#4a3517" },
-    iconStyle: { color: "#946f29" }
+    style: { backgroundColor: "var(--stat-film-bg)", borderColor: "var(--stat-film-border)", color: "var(--stat-film-fg)" },
+    iconStyle: { color: "var(--stat-film-icon)" }
   }
 };
 
 export const recentItemCardStyles: CSSProperties[] = [
-  { backgroundColor: "#ead8d2", borderColor: "#cda99e", color: "#442b24" },
-  { backgroundColor: "#d9e3d0", borderColor: "#acc49d", color: "#263b22" },
-  { backgroundColor: "#d4e4df", borderColor: "#9ebfb4", color: "#203b35" },
-  { backgroundColor: "#e7d9c4", borderColor: "#c9aa79", color: "#433019" },
-  { backgroundColor: "#dedbd1", borderColor: "#bbb4a4", color: "#353026" }
+  { backgroundColor: "var(--recent-item-1-bg)", borderColor: "var(--recent-item-1-border)", color: "var(--recent-item-1-fg)" },
+  { backgroundColor: "var(--recent-item-2-bg)", borderColor: "var(--recent-item-2-border)", color: "var(--recent-item-2-fg)" },
+  { backgroundColor: "var(--recent-item-3-bg)", borderColor: "var(--recent-item-3-border)", color: "var(--recent-item-3-fg)" },
+  { backgroundColor: "var(--recent-item-4-bg)", borderColor: "var(--recent-item-4-border)", color: "var(--recent-item-4-fg)" },
+  { backgroundColor: "var(--recent-item-5-bg)", borderColor: "var(--recent-item-5-border)", color: "var(--recent-item-5-fg)" }
 ];
 
 export const chartPalette = [
