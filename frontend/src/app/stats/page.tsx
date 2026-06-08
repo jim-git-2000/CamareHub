@@ -304,7 +304,7 @@ export default function StatsPage() {
         <StatCard
           title="总资产估值"
           value={currencyFormatter.format(state.summary.total_value)}
-          description="按当前估值汇总"
+          description="持有器材当前估值合计"
           icon={CircleDollarSign}
           tone="totalValue"
         />

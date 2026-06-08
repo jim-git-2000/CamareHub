@@ -38,6 +38,12 @@ def _item_value(item: Item) -> float:
     return item.current_value or 0
 
 
+def _owned_item_value(item: Item) -> float:
+    if item.status != "owned":
+        return 0
+    return _item_value(item)
+
+
 def _film_quantity(film: Film) -> int:
     return film.quantity or 0
 
@@ -93,7 +99,7 @@ def summary(session: Session = Depends(get_session)) -> StatsSummaryRead:
     recent_items, _ = crud.list_items(session=session, sort="-purchase_date", page=1, page_size=5)
 
     return StatsSummaryRead(
-        total_value=sum(_item_value(item) for item in items),
+        total_value=sum(_owned_item_value(item) for item in items),
         camera_count=sum(1 for item in items if item.type == "camera"),
         lens_count=sum(1 for item in items if item.type == "lens"),
         film_stock=sum(_film_quantity(film) for film in films),
@@ -108,7 +114,7 @@ def by_brand(session: Session = Depends(get_session)) -> list[StatsBucketRead]:
     for item in session.exec(select(Item)).all():
         key = item.brand or "未知品牌"
         buckets[key]["count"] += 1
-        buckets[key]["total_value"] += _item_value(item)
+        buckets[key]["total_value"] += _owned_item_value(item)
 
     return [
         StatsBucketRead(key=brand, label=brand, count=int(data["count"]), total_value=float(data["total_value"]))
@@ -122,7 +128,7 @@ def by_type(session: Session = Depends(get_session)) -> list[StatsBucketRead]:
 
     for item in session.exec(select(Item)).all():
         buckets[item.type]["count"] += 1
-        buckets[item.type]["total_value"] += _item_value(item)
+        buckets[item.type]["total_value"] += _owned_item_value(item)
 
     return [
         StatsBucketRead(

@@ -45,9 +45,15 @@ const statusOptions = [
   { value: ALL_VALUE, label: "全部状态" },
   { value: "owned", label: "持有" },
   { value: "sold", label: "已出售" },
-  { value: "wishlist", label: "愿望清单" },
-  { value: "archived", label: "已归档" }
+  { value: "wishlist", label: "愿望清单" }
 ];
+
+const statusLabels: Record<string, string> = {
+  owned: "持有",
+  sold: "已出售",
+  wishlist: "愿望清单",
+  archived: "已归档"
+};
 
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
@@ -56,7 +62,7 @@ function typeLabel(type: string): string {
 }
 
 function statusLabel(status: string): string {
-  return statusOptions.find((option) => option.value === status)?.label ?? status;
+  return statusLabels[status] ?? status;
 }
 
 function getCurrencyFormatter(currency: string): Intl.NumberFormat {

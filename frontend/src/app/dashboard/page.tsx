@@ -104,7 +104,9 @@ function sortRecentItems(items: ItemRead[]): ItemRead[] {
 
 function summarizeItems(items: ItemRead[]): DashboardSummary {
   return {
-    totalValue: items.reduce((sum, item) => sum + readNumber(item.current_value), 0),
+    totalValue: items
+      .filter((item) => item.status === "owned")
+      .reduce((sum, item) => sum + readNumber(item.current_value), 0),
     cameraCount: items.filter((item) => item.type === "camera").length,
     lensCount: items.filter((item) => item.type === "lens").length,
     filmStock: items
@@ -421,7 +423,7 @@ export default function DashboardPage() {
       {
         title: "总资产估值",
         value: currencyFormatter.format(state.summary.totalValue),
-        description: "按当前估值汇总",
+        description: "持有器材当前估值合计",
         icon: CircleDollarSign,
         tone: "totalValue" as const
       },

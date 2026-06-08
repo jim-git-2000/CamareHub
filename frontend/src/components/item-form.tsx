@@ -79,8 +79,7 @@ const typeOptions = [
 const statusOptions = [
   { value: "owned", label: "持有" },
   { value: "sold", label: "已出售" },
-  { value: "wishlist", label: "愿望清单" },
-  { value: "archived", label: "已归档" }
+  { value: "wishlist", label: "愿望清单" }
 ];
 
 const conditionOptions = [
