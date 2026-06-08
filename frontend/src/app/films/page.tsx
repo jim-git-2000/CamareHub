@@ -182,14 +182,14 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
         className="overflow-hidden border transition-colors duration-300 hover:border-primary/60"
         style={{ backgroundColor: colorToCss(color) }}
       >
-        <div className="grid min-h-52 gap-0 md:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-56">
+        <div className="grid min-h-40 gap-0 md:grid-cols-[minmax(0,1fr)_200px]">
+          <div className="order-2 aspect-[4/3] bg-muted md:order-2 md:h-full md:min-h-40">
             {coverUrl ? (
               <div className="relative h-full">
                 <div
-                  className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-72 md:block"
+                  className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-36 md:block"
                   style={{
-                    background: `linear-gradient(90deg, ${colorToCss(color)} 0%, ${colorToCss(color, 0.99)} 18%, ${colorToCss(color, 0.88)} 36%, ${colorToCss(color, 0.64)} 56%, ${colorToCss(color, 0.34)} 76%, ${colorToCss(color, 0.12)} 90%, transparent 100%)`
+                    background: `linear-gradient(90deg, ${colorToCss(color)} 0%, ${colorToCss(color, 0.99)} 16%, ${colorToCss(color, 0.82)} 38%, ${colorToCss(color, 0.52)} 62%, ${colorToCss(color, 0.18)} 84%, transparent 100%)`
                   }}
                 />
                 <img
@@ -199,31 +199,31 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
                 />
               </div>
             ) : (
-              <div className="flex h-full min-h-44 items-center justify-center" style={{ color: mutedForeground }}>
-                <ImageIcon className="h-9 w-9" aria-hidden="true" />
+              <div className="flex h-full min-h-36 items-center justify-center" style={{ color: mutedForeground }}>
+                <ImageIcon className="h-7 w-7" aria-hidden="true" />
               </div>
             )}
           </div>
-          <div className="order-1 flex min-w-0 flex-col justify-between gap-4 p-4 sm:p-5" style={{ color: foreground }}>
+          <div className="order-1 flex min-w-0 flex-col justify-between gap-3 p-3.5 sm:p-4" style={{ color: foreground }}>
             <div className="min-w-0">
-              <h2 className="break-words text-xl font-semibold tracking-normal">{entry.title}</h2>
-              <div className="mt-3 flex flex-wrap gap-3 text-sm" style={{ color: mutedForeground }}>
+              <h2 className="break-words text-lg font-semibold leading-snug tracking-normal">{entry.title}</h2>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-xs" style={{ color: mutedForeground }}>
                 <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                   {formatDate(entry.date)}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                   {entry.location || "未填写地点"}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <ImageIcon className="h-4 w-4" aria-hidden="true" />
+                  <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
                   {entry.photo_count} 张图片
                 </span>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
                 {entry.item_links.length === 0 ? (
                   <Badge variant="outline" className="bg-background/60">
@@ -242,7 +242,7 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
                 ) : null}
               </div>
 
-              {entry.notes ? <p className="line-clamp-2 text-sm" style={{ color: mutedForeground }}>{entry.notes}</p> : null}
+              {entry.notes ? <p className="line-clamp-1 text-xs" style={{ color: mutedForeground }}>{entry.notes}</p> : null}
             </div>
           </div>
         </div>

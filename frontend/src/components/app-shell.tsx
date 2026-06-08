@@ -128,7 +128,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto grid max-w-6xl gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto_minmax(260px,1fr)] md:items-center">
           <div className="flex items-center justify-between gap-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold">
               <img src="/camerahub-logo.png" alt="" className="h-7 w-auto shrink-0 rounded-sm object-contain" width={44} height={28} />
@@ -138,8 +138,10 @@ export function AppShell({ children }: AppShellProps) {
               <HeaderActions apiState={apiState} apiMessage={apiMessage} compact theme={theme} onThemeToggle={toggleTheme} />
             </div>
           </div>
-          <Nav />
-          <div className="hidden md:block">
+          <div className="min-w-0 md:justify-self-center">
+            <Nav />
+          </div>
+          <div className="hidden md:block md:justify-self-end">
             <HeaderActions apiState={apiState} apiMessage={apiMessage} theme={theme} onThemeToggle={toggleTheme} />
           </div>
         </div>

@@ -20,14 +20,17 @@ export function Nav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex max-w-full items-center gap-1 overflow-x-auto text-sm" aria-label="Main navigation">
+    <nav
+      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/45 p-1 text-sm shadow-sm"
+      aria-label="Main navigation"
+    >
       {navItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           className={cn(
-            "rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-            isActive(pathname, item.href) && "bg-accent text-accent-foreground"
+            "rounded-md px-3.5 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground",
+            isActive(pathname, item.href) && "bg-background text-foreground shadow-sm"
           )}
         >
           {item.label}
