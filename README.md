@@ -6,6 +6,10 @@
 
 <p align="center">A self-hosted photography gear and shooting archive built with Next.js, FastAPI, SQLite, and local file storage.</p>
 
+<p align="center">
+  <a href="./README_zh.md">简体中文</a>
+</p>
+
 ## Overview
 
 CameraHub is a local-first photography management system for:
