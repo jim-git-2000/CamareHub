@@ -3,6 +3,13 @@ export type HealthResponse = {
   app: string;
 };
 
+export type QuoteBannerSettingsResponse = {
+  interval_seconds: number;
+  quotes: string[];
+  uses_default_interval: boolean;
+  uses_default_quotes: boolean;
+};
+
 export type ApiErrorResponse = {
   detail?: string;
   message?: string;

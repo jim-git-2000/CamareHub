@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Moon, Settings, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { getHealth } from "@/lib/api";
+import { QuoteBanner } from "@/components/quote-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Nav } from "@/components/nav";
@@ -146,6 +147,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </div>
       </header>
+      <QuoteBanner />
       {apiState === "error" ? (
         <div className="border-b bg-destructive/10">
           <div className="mx-auto max-w-6xl px-4 py-2 text-sm text-destructive">{apiMessage}</div>

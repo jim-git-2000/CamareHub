@@ -13,6 +13,7 @@ import type {
   ShootingEntryMutationPayload,
   ShootingEntryPhotoRead,
   ShootingEntryRead,
+  QuoteBannerSettingsResponse,
   TransactionRead
 } from "@/types";
 
@@ -84,6 +85,26 @@ export async function apiRequest<T>(path: string, init?: RequestInit & { timeout
 
 export function getHealth(): Promise<HealthResponse> {
   return apiRequest<HealthResponse>("/api/health");
+}
+
+export function getQuoteBannerSettings(): Promise<QuoteBannerSettingsResponse> {
+  return apiRequest<QuoteBannerSettingsResponse>("/api/quote-banner");
+}
+
+export function updateQuoteBannerSettings(payload: {
+  interval_seconds?: number;
+  quotes?: string[];
+}): Promise<QuoteBannerSettingsResponse> {
+  return apiRequest<QuoteBannerSettingsResponse>("/api/quote-banner", {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function resetQuoteBannerSettings(): Promise<QuoteBannerSettingsResponse> {
+  return apiRequest<QuoteBannerSettingsResponse>("/api/quote-banner", {
+    method: "DELETE"
+  });
 }
 
 type ListItemsParams = {

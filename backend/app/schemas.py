@@ -186,6 +186,18 @@ class FilmStockBucketRead(SQLModel):
     quantity: int
 
 
+class QuoteBannerSettingsRead(SQLModel):
+    interval_seconds: int
+    quotes: list[str]
+    uses_default_interval: bool
+    uses_default_quotes: bool
+
+
+class QuoteBannerSettingsUpdate(SQLModel):
+    interval_seconds: int | None = None
+    quotes: list[str] | None = None
+
+
 class ShootingEntryItemLinkBase(SQLModel):
     item_id: int
     role: str

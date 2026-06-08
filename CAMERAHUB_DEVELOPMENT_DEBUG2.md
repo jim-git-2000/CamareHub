@@ -1645,12 +1645,172 @@ npm run build
 
 ---
 
+## 调试 12：导航下方增加摄影“一言”条，并支持设置切换时间与自定义内容
+
+### 目标
+
+在顶部导航栏下方增加一个横向条形区域，用于展示摄影相关的“一言”。
+
+要求：
+
+1. 页面刷新时切换为另一条一言。
+2. 页面不刷新时，按设置的时间间隔自动切换。
+3. 切换方式应为随机切换，不要按给定列表顺序轮播。
+4. 设置页面可以修改自动切换时间。
+5. 设置页面可以编辑自定义“一言”列表。
+6. 默认提供一组摄影相关文案，每行一条。
+
+### 只允许做
+
+- 增加导航栏下方的“一言”展示条。
+- 增加前端定时轮播切换逻辑。
+- 在设置页面增加：
+  - 切换时间设置项
+  - 自定义“一言”输入区域
+- 支持使用默认文案初始化。
+- 支持将设置保存到前端本地存储，刷新后仍保留。
+
+### 不允许做
+
+- 不要修改后端接口。
+- 不要新增数据库字段或数据表。
+- 不要引入需要联网的第三方一言服务。
+- 不要执行调试 13 或后续未定义调试。
+
+### 前端实现要求
+
+重点检查：
+
+```text
+frontend/src/components/app-shell.tsx
+frontend/src/app/settings/page.tsx
+frontend/src/app/globals.css
+frontend/src/lib/
+```
+
+实现要求：
+
+1. “一言”条放在顶部导航区域下方，宽度跟随页面主体，视觉上是低高度横条，不要做成大卡片。
+2. 默认展示一条文案，文字需要在浅色和深色模式下都清晰可读。
+3. 刷新页面时应随机切换到另一条文案，不能每次固定第一条，也不要按列表顺序循环。
+4. 页面停留时按设定时间随机自动切换。
+5. 连续两次切换应尽量避免重复到同一条，至少在候选数大于 1 时不要连续重复同一条。
+6. 设置页面应提供：
+   - 自动切换时间输入框，建议单位为秒
+   - 自定义“一言”多行文本框，每行一条
+7. 当用户未自定义时，应使用默认文案列表。
+8. 自定义列表为空时，应回退到默认文案，不允许出现空白条。
+9. 不要影响现有导航、GitHub Star、深色模式、设置按钮布局。
+
+### 默认“一言”列表
+
+默认文案按“每行一条”处理：
+
+```text
+“If your pictures aren't good enough, you're not close enough.” —— Robert Capa
+“A photograph is a secret about a secret. The more it tells you, the less you know.” —— Diane Arbus
+“To photograph is to put on the same line of sight the head, the eye and the heart.” —— Henri Cartier-Bresson
+“Photography is a way of feeling, of touching, of loving.” —— Aaron Siskind
+“The camera is an instrument that teaches people how to see without a camera.” —— Dorothea Lange
+“You don't take a photograph, you make it.” —— Ansel Adams
+“A good photograph is knowing where to stand.” —— Ansel Adams
+“The whole point of taking pictures is so that you don't have to explain things with words.” —— Elliott Erwitt
+“There is one thing the photograph must contain, the humanity of the moment.” —— Robert Frank
+“Taking pictures is savoring life intensely, every hundredth of a second.” —— Marc Riboud
+“What I like about photographs is that they capture a moment that’s gone forever, impossible to reproduce.” —— Karl Lagerfeld
+“The best thing about a picture is that it never changes, even when the people in it do.” —— Andy Warhol
+“I've been taking pictures all my life, long before I had a camera.” ——《一小时快照》
+“If it makes me laugh, if it makes me cry, if it rips out my heart, that's a good picture.” ——《一小时快照》
+“Sometimes I think all anyone needs in life is lots of popcorn and a few Lovelies.” ——《皮毛》
+“You don't make up for your sins in church. You do it in the streets. You do it at home.” ——《穷街陋巷》
+“Taking pictures is like tiptoeing into the kitchen late at night and stealing Oreo cookies.” —— Diane Arbus
+“I really believe there are things nobody would see if I didn't photograph them.” —— Diane Arbus
+“Which of my photographs is my favorite? The one I'm going to take tomorrow.” —— Imogen Cunningham
+“I photograph to find out what something will look like photographed.” —— Garry Winogrand
+“The world just does not fit conveniently into the format of a 35mm camera.” —— W. Eugene Smith
+“Your first 10,000 photographs are your worst.” —— Henri Cartier-Bresson
+“It's not what you look at that matters, it's what you see.” —— Henry David Thoreau
+“There are no rules for good photographs, there are only good photographs.” —— Ansel Adams
+“Wherever there is light, one can photograph.” —— Alfred Stieglitz
+“Once photography enters your bloodstream, it is like a disease.” —— Anonymous
+“Look and think before opening the shutter. The heart and mind are the true lens of the camera.” —— Yousuf Karsh
+“In photography there is a reality so subtle that it becomes more real than reality.” —— Alfred Stieglitz
+“Photographs open doors into the past, but they also allow a look into the future.” —— Sally Mann
+“Photography helps people to see.” —— Berenice Abbott
+光落下来的时候，故事开始生长。
+按下快门，是向时间借来的一次停留。
+有些风景会消失，有些照片会留下。
+镜头记录世界，也记录当时的自己。
+照片不会说话，却能让人沉默很久。
+每一次对焦，都是一次选择。
+世界一直都在那里，只是等待被看见。
+时间向前走，照片向后看。
+那些来不及说出口的话，都留在了光影里。
+把转瞬即逝，变成永恒。
+有些瞬间只存在一秒，却值得记住一生。
+镜头之外是生活，镜头之内是答案。
+真正打动人的，从来不是风景，而是风景里的情绪。
+光影有尽头，记忆没有。
+所有伟大的照片，本质上都在讲述同一个故事：我们曾经在这里。
+“To see the world, things dangerous to come to, to see behind walls, draw closer, to find each other, and to feel. That is the purpose of life.” ——《白日梦想家》
+“Beautiful things don't ask for attention.” ——《白日梦想家》
+“If I like a moment, I mean me, personally, I don't like to have the distraction of the camera. I just want to stay in it.” ——《白日梦想家》
+“Sometimes I don't. If I like a moment, for me, personally, I don't like to have the distraction of the camera. I just want to stay in it.” ——《白日梦想家》
+```
+
+### 验收标准
+
+- 导航栏下方出现“一言”条。
+- 页面刷新后会随机切换显示的文案。
+- 页面停留时会按设定时间随机自动切换。
+- 在可选文案数大于 1 时，不会连续两次显示同一条。
+- 设置页面可以修改自动切换时间。
+- 设置页面可以编辑自定义“一言”列表，格式为每行一条。
+- 自定义内容保存后刷新仍有效。
+- 自定义内容为空时自动回退到默认文案列表。
+- 浅色和深色模式下文字都清晰可读。
+- 不修改后端接口和数据库结构。
+
+### 验证命令
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://192.168.32.123:8000 npm run dev
+```
+
+浏览器检查：
+
+```text
+http://192.168.32.123:3010/dashboard
+http://192.168.32.123:3010/settings
+```
+
+如果前端依赖已安装，可以执行：
+
+```bash
+cd frontend
+npm run build
+```
+
+### 完成后输出
+
+完成后请列出：
+
+1. 修改了哪些文件
+2. 如何启动或测试
+3. “一言”条是否已显示并自动切换
+4. 设置页面是否可修改切换时间和自定义内容
+5. 是否有未完成问题
+6. 下一步应该执行哪个调试
+
+---
+
 # 5. 推荐执行顺序
 
 按下面顺序执行：
 
 ```text
-调试 1 -> 调试 2 -> 调试 3 -> 调试 4 -> 调试 5 -> 调试 6 -> 调试 7 -> 调试 8 -> 调试 9 -> 调试 10 -> 调试 11
+调试 1 -> 调试 2 -> 调试 3 -> 调试 4 -> 调试 5 -> 调试 6 -> 调试 7 -> 调试 8 -> 调试 9 -> 调试 10 -> 调试 11 -> 调试 12
 ```
 
 原因：
@@ -1664,6 +1824,7 @@ npm run build
 7. 调试 9 先处理品牌入口和根路径，保证进入应用的默认路径明确。
 8. 调试 10 在顶部结构稳定后再调整导航居中和拍摄事项卡片密度。
 9. 调试 11 最后调整器材卡片 hover 交互，避免和导航、布局调整混在一起。
+10. 调试 12 在顶部结构和设置页入口稳定后，再加入“一言”条与前端本地设置，返工最少。
 
 ---
 
@@ -1696,3 +1857,5 @@ npm run build
 23. 顶部导航 `概览`、`器材`、`照片`、`统计` 在桌面端居中且样式更清晰。
 24. 拍摄事项汇总页横条卡片更紧凑。
 25. 器材汇总页卡片默认精简，hover 时显示购买/估值和关键参数。
+26. 导航栏下方显示摄影“一言”条，刷新和定时都可切换内容。
+27. 设置页可设置“一言”自动切换时间，并编辑自定义“一言”列表。
