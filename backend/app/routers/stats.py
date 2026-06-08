@@ -90,7 +90,7 @@ def _range_overlaps(start: float, end: float, lower: float | None, upper: float 
 def summary(session: Session = Depends(get_session)) -> StatsSummaryRead:
     items = session.exec(select(Item)).all()
     films = session.exec(select(Film)).all()
-    recent_items, _ = crud.list_items(session=session, sort="-created_at", page=1, page_size=5)
+    recent_items, _ = crud.list_items(session=session, sort="-purchase_date", page=1, page_size=5)
 
     return StatsSummaryRead(
         total_value=sum(_item_value(item) for item in items),

@@ -48,6 +48,14 @@ VALID_SORTS = {
 }
 
 
+def _item_order_by(sort: str | None):
+    if sort == "-purchase_date":
+        return (Item.purchase_date.is_(None), Item.purchase_date.desc(), Item.created_at.desc(), Item.id.desc())
+    if sort == "purchase_date":
+        return (Item.purchase_date.is_(None), Item.purchase_date, Item.created_at.desc(), Item.id.desc())
+    return (VALID_SORTS.get(sort or "-created_at", Item.created_at.desc()),)
+
+
 def _validate_item_type(item_type: str) -> None:
     if item_type not in VALID_ITEM_TYPES:
         raise ValueError(f"Unsupported item type: {item_type}")
@@ -320,8 +328,7 @@ def list_items(
         statement = statement.where(filter_item)
         count_statement = count_statement.where(filter_item)
 
-    order_by = VALID_SORTS.get(sort or "-created_at", Item.created_at.desc())
-    statement = statement.order_by(order_by).offset((page - 1) * page_size).limit(page_size)
+    statement = statement.order_by(*_item_order_by(sort)).offset((page - 1) * page_size).limit(page_size)
 
     total = session.exec(count_statement).one()
     items = session.exec(statement).all()

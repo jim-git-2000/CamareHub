@@ -74,7 +74,31 @@ function normalizeStatsSummary(summary: StatsSummary, recentItems: ItemRead[]): 
 
 function sortRecentItems(items: ItemRead[]): ItemRead[] {
   return [...items]
-    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+    .sort((left, right) => {
+      if (left.purchase_date && !right.purchase_date) {
+        return -1;
+      }
+
+      if (!left.purchase_date && right.purchase_date) {
+        return 1;
+      }
+
+      if (left.purchase_date && right.purchase_date) {
+        const purchaseDiff = new Date(right.purchase_date).getTime() - new Date(left.purchase_date).getTime();
+
+        if (purchaseDiff !== 0) {
+          return purchaseDiff;
+        }
+      }
+
+      const createdDiff = new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+
+      if (createdDiff !== 0) {
+        return createdDiff;
+      }
+
+      return right.id - left.id;
+    })
     .slice(0, 5);
 }
 
@@ -92,12 +116,12 @@ function summarizeItems(items: ItemRead[]): DashboardSummary {
 
 async function fetchAllItems(): Promise<ItemRead[]> {
   const pageSize = 100;
-  const firstPage = await listItems({ page: 1, page_size: pageSize, sort: "-created_at" });
+  const firstPage = await listItems({ page: 1, page_size: pageSize, sort: "-purchase_date" });
   const items = [...firstPage.items];
   const totalPages = Math.ceil(firstPage.total / pageSize);
 
   for (let page = 2; page <= totalPages; page += 1) {
-    const response = await listItems({ page, page_size: pageSize, sort: "-created_at" });
+    const response = await listItems({ page, page_size: pageSize, sort: "-purchase_date" });
     items.push(...response.items);
   }
 
@@ -107,11 +131,11 @@ async function fetchAllItems(): Promise<ItemRead[]> {
 async function fetchDashboardSummary(): Promise<DashboardSummary> {
   try {
     const stats = await getStatsSummary();
-    let recentItems = readRecentItems(stats).slice(0, 5);
+    let recentItems = sortRecentItems(readRecentItems(stats));
 
     if (recentItems.length === 0) {
-      const recent = await listItems({ page: 1, page_size: 5, sort: "-created_at" });
-      recentItems = recent.items;
+      const recent = await listItems({ page: 1, page_size: 5, sort: "-purchase_date" });
+      recentItems = sortRecentItems(recent.items);
     }
 
     return normalizeStatsSummary(stats, recentItems);
@@ -494,7 +518,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">最近新增器材</CardTitle>
-              <CardDescription>按创建时间展示最近 5 条记录</CardDescription>
+              <CardDescription>按购买日期展示最近 5 条记录</CardDescription>
             </CardHeader>
             <CardContent>
               {state.summary.recentItems.length === 0 ? (
