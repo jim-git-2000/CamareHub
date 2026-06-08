@@ -130,7 +130,8 @@ export function AppShell({ children }: AppShellProps) {
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="text-base font-semibold">
+            <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold">
+              <img src="/camerahub-logo.png" alt="" className="h-7 w-auto shrink-0 rounded-sm object-contain" width={44} height={28} />
               CameraHub
             </Link>
             <div className="md:hidden">
