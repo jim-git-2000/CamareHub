@@ -1,3 +1,6 @@
+import re
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -34,6 +37,8 @@ VALID_SHOOTING_ENTRY_ITEM_ROLES = {"camera", "lens", "film", "other"}
 ALLOWED_PHOTO_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
+SHOOTING_ENTRIES_UPLOAD_DIR = "shooting-entries"
+SHOOTING_ENTRY_FOLDER_FALLBACK = "shooting-entry"
 VALID_SORTS = {
     "created_at": Item.created_at,
     "-created_at": Item.created_at.desc(),
@@ -139,23 +144,128 @@ def _delete_extensions(session: Session, item_id: int) -> None:
         session.exec(delete(model).where(model.item_id == item_id))
 
 
-def _delete_photo_files(photos: list[Photo]) -> None:
-    for photo in photos:
-        path = Path(photo.file_path)
-        if not path.is_absolute():
-            path = _upload_dir() / path.name
+def _safe_folder_name(value: str | None) -> str:
+    slug = re.sub(r"[^\w-]+", "-", (value or "").strip().lower()).strip("-_")
+    return slug or SHOOTING_ENTRY_FOLDER_FALLBACK
+
+
+def _folder_title(value: str) -> str:
+    name = value.strip()
+    match = re.match(r"^\d+-(.+)$", name)
+    if match:
+        name = match.group(1)
+    return name.replace("-", " ").strip() or SHOOTING_ENTRY_FOLDER_FALLBACK
+
+
+def _shooting_entry_folder(entry: ShootingEntry) -> str:
+    return f"{entry.id}-{_safe_folder_name(entry.title)}"
+
+
+def _shooting_entries_dir() -> Path:
+    return _upload_dir() / SHOOTING_ENTRIES_UPLOAD_DIR
+
+
+def _ensure_shooting_entries_dir() -> Path:
+    path = _shooting_entries_dir()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _find_shooting_entry_folder(entry_id: int) -> Path | None:
+    prefix = f"{entry_id}-"
+    root = _ensure_shooting_entries_dir()
+    for folder in root.iterdir():
+        if folder.is_dir() and folder.name.startswith(prefix):
+            return folder
+    return None
+
+
+def _shooting_entry_folder_path(entry: ShootingEntry, create: bool = False) -> Path:
+    if entry.id is None:
+        raise ValueError("Shooting entry id is required")
+
+    existing = _find_shooting_entry_folder(entry.id)
+    if existing is not None:
+        return existing
+
+    path = _shooting_entries_dir() / _shooting_entry_folder(entry)
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _shooting_entry_relative_dir(entry: ShootingEntry, create: bool = False) -> Path:
+    folder = _shooting_entry_folder_path(entry, create=create)
+    return Path(SHOOTING_ENTRIES_UPLOAD_DIR) / folder.name
+
+
+def _upload_relative_path(file_path: str) -> Path | None:
+    path = Path(file_path)
+
+    if path.is_absolute():
+        try:
+            return path.resolve(strict=False).relative_to(_upload_dir().resolve(strict=False))
+        except ValueError:
+            return None
+
+    parts = path.parts
+    if parts and parts[0] == "uploads":
+        parts = parts[1:]
+
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        return None
+
+    relative = Path(*parts)
+    if relative.is_absolute():
+        return None
+
+    target = (_upload_dir() / relative).resolve(strict=False)
+    try:
+        target.relative_to(_upload_dir().resolve(strict=False))
+    except ValueError:
+        return None
+
+    return relative
+
+
+def _upload_target_path(relative_path: Path) -> Path:
+    target_path = _upload_dir() / relative_path
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    return target_path
+
+
+def _stored_upload_path(relative_path: Path) -> str:
+    return f"uploads/{relative_path.as_posix()}"
+
+
+def _upload_url(file_path: str) -> str:
+    relative_path = _upload_relative_path(file_path)
+    if relative_path is None:
+        return f"/uploads/{Path(file_path).name}"
+    return f"/uploads/{relative_path.as_posix()}"
+
+
+def _delete_upload_files(file_paths: list[str]) -> None:
+    for file_path in file_paths:
+        relative_path = _upload_relative_path(file_path)
+        if relative_path is None:
+            continue
+
+        path = _upload_dir() / relative_path
         if path.exists() and path.is_file():
             path.unlink()
 
 
+def _delete_photo_files(photos: list[Photo]) -> None:
+    _delete_upload_files([photo.file_path for photo in photos])
+
+
 def _photo_url(photo: Photo) -> str:
-    path = Path(photo.file_path)
-    return f"/uploads/{path.name}"
+    return _upload_url(photo.file_path)
 
 
 def _shooting_entry_photo_url(photo: ShootingEntryPhoto) -> str:
-    path = Path(photo.file_path)
-    return f"/uploads/{path.name}"
+    return _upload_url(photo.file_path)
 
 
 def _to_photo_read(photo: Photo) -> PhotoRead:
@@ -189,6 +299,16 @@ def _validate_photo_upload(file_name: str, content_type: str | None, content: by
     if len(content) > MAX_PHOTO_SIZE_BYTES:
         raise ValueError("Image size must be 10MB or less")
     return extension
+
+
+def _photo_content_type(path: Path) -> str | None:
+    extension = path.suffix.lower().lstrip(".")
+    return {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "webp": "image/webp",
+    }.get(extension)
 
 
 def calculate_dominant_color(content: bytes) -> str | None:
@@ -239,18 +359,78 @@ def _read_shooting_entry_items(session: Session, entry_id: int) -> list[Shooting
     return result
 
 
-def _read_shooting_entry_photos(session: Session, entry_id: int) -> list[ShootingEntryPhotoRead]:
+def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -> None:
+    if entry.id is None:
+        return
+
+    folder = _shooting_entry_folder_path(entry)
+    if not folder.exists() or not folder.is_dir():
+        return
+
+    photos = session.exec(
+        select(ShootingEntryPhoto)
+        .where(ShootingEntryPhoto.entry_id == entry.id)
+    ).all()
+    seen_paths = {
+        relative_path.as_posix()
+        for photo in photos
+        if (relative_path := _upload_relative_path(photo.file_path)) is not None
+    }
+    changed = False
+
+    for path in sorted(folder.iterdir(), key=lambda item: item.name.lower()):
+        if not path.is_file() or path.suffix.lower().lstrip(".") not in ALLOWED_PHOTO_EXTENSIONS:
+            continue
+
+        relative_path = Path(SHOOTING_ENTRIES_UPLOAD_DIR) / folder.name / path.name
+        if relative_path.as_posix() in seen_paths:
+            continue
+
+        stat = path.stat()
+        session.add(
+            ShootingEntryPhoto(
+                entry_id=entry.id,
+                file_path=_stored_upload_path(relative_path),
+                file_name=path.name,
+                content_type=_photo_content_type(path),
+                file_size=stat.st_size,
+                dominant_color=None,
+                created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
+            )
+        )
+        changed = True
+
+    if changed:
+        session.commit()
+
+
+def _read_shooting_entry_photos(
+    session: Session,
+    entry_id: int,
+    include_folder_photos: bool = False,
+) -> list[ShootingEntryPhotoRead]:
+    if include_folder_photos:
+        entry = session.get(ShootingEntry, entry_id)
+        if entry is not None:
+            _sync_shooting_entry_folder_photos(session, entry)
+
     photos = session.exec(
         select(ShootingEntryPhoto)
         .where(ShootingEntryPhoto.entry_id == entry_id)
         .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
     ).all()
-    return [_to_shooting_entry_photo_read(photo) for photo in photos]
+    result = [_to_shooting_entry_photo_read(photo) for photo in photos]
+
+    return result
 
 
-def _to_shooting_entry_read(session: Session, entry: ShootingEntry) -> ShootingEntryRead:
+def _to_shooting_entry_read(
+    session: Session,
+    entry: ShootingEntry,
+    include_folder_photos: bool = False,
+) -> ShootingEntryRead:
     data = entry.model_dump()
-    photos = _read_shooting_entry_photos(session, entry.id or 0)
+    photos = _read_shooting_entry_photos(session, entry.id or 0, include_folder_photos=include_folder_photos)
     data["item_links"] = _read_shooting_entry_items(session, entry.id or 0)
     data["photos"] = photos
     data["photo_count"] = len(photos)
@@ -278,12 +458,74 @@ def _set_shooting_entry_items(
 
 
 def _delete_shooting_entry_photo_files(photos: list[ShootingEntryPhoto]) -> None:
-    for photo in photos:
-        path = Path(photo.file_path)
-        if not path.is_absolute():
-            path = _upload_dir() / path.name
-        if path.exists() and path.is_file():
-            path.unlink()
+    _delete_upload_files([photo.file_path for photo in photos])
+
+
+def _delete_shooting_entry_folder(entry: ShootingEntry) -> None:
+    if entry.id is None:
+        return
+
+    folder = _find_shooting_entry_folder(entry.id)
+    if folder is None or not folder.exists():
+        return
+
+    root = _shooting_entries_dir().resolve(strict=False)
+    target = folder.resolve(strict=False)
+    try:
+        target.relative_to(root)
+    except ValueError:
+        return
+
+    shutil.rmtree(target)
+
+
+def _sync_shooting_entry_folders(session: Session) -> None:
+    root = _shooting_entries_dir()
+    root_existed = root.exists()
+    root = _ensure_shooting_entries_dir()
+    existing_entries = session.exec(select(ShootingEntry)).all()
+    existing_ids = {entry.id for entry in existing_entries if entry.id is not None}
+    folder_entry_ids = {
+        int(match.group(1))
+        for folder in root.iterdir()
+        if folder.is_dir() and (match := re.match(r"^(\d+)-(.+)$", folder.name))
+    }
+    changed = False
+
+    if root_existed:
+        missing_entries = [entry for entry in existing_entries if entry.id is not None and entry.id not in folder_entry_ids]
+        for entry in missing_entries:
+            session.exec(delete(ShootingEntryItem).where(ShootingEntryItem.entry_id == entry.id))
+            session.exec(delete(ShootingEntryPhoto).where(ShootingEntryPhoto.entry_id == entry.id))
+            session.delete(entry)
+            existing_ids.discard(entry.id)
+            changed = True
+
+    for folder in sorted(root.iterdir(), key=lambda item: item.name.lower()):
+        if not folder.is_dir():
+            continue
+
+        match = re.match(r"^(\d+)-(.+)$", folder.name)
+        if match and int(match.group(1)) in existing_ids:
+            continue
+
+        title = _folder_title(folder.name)
+        entry = ShootingEntry(title=title)
+        session.add(entry)
+        session.commit()
+        session.refresh(entry)
+
+        if entry.id is None:
+            continue
+
+        existing_ids.add(entry.id)
+        target = root / _shooting_entry_folder(entry)
+        if folder != target and not target.exists():
+            folder.rename(target)
+        changed = True
+
+    if changed:
+        session.commit()
 
 
 def create_item(session: Session, payload: ItemCreate) -> ItemRead:
@@ -471,13 +713,13 @@ def create_photo(
 
     extension = _validate_photo_upload(file_name, content_type, content)
     stored_name = f"{uuid4().hex}.{extension}"
-    relative_path = f"uploads/{stored_name}"
-    target_path = _upload_dir() / stored_name
+    relative_path = Path(item.type) / stored_name
+    target_path = _upload_target_path(relative_path)
     target_path.write_bytes(content)
 
     photo = Photo(
         item_id=item_id,
-        file_path=relative_path,
+        file_path=_stored_upload_path(relative_path),
         file_name=file_name,
         content_type=content_type,
         file_size=len(content),
@@ -514,6 +756,7 @@ def delete_photo(session: Session, photo_id: int) -> bool:
 
 
 def create_shooting_entry(session: Session, payload: ShootingEntryCreate) -> ShootingEntryRead:
+    _sync_shooting_entry_folders(session)
     _validate_shooting_entry_title(payload.title)
     entry = ShootingEntry(
         title=payload.title.strip(),
@@ -527,17 +770,19 @@ def create_shooting_entry(session: Session, payload: ShootingEntryCreate) -> Sho
 
     if entry.id is None:
         raise ValueError("Shooting entry was not created")
+    _shooting_entry_folder_path(entry, create=True)
     _set_shooting_entry_items(session, entry.id, payload.item_links)
     session.commit()
     session.refresh(entry)
-    return _to_shooting_entry_read(session, entry)
+    return _to_shooting_entry_read(session, entry, include_folder_photos=True)
 
 
 def get_shooting_entry(session: Session, entry_id: int) -> ShootingEntryRead | None:
+    _sync_shooting_entry_folders(session)
     entry = session.get(ShootingEntry, entry_id)
     if entry is None:
         return None
-    return _to_shooting_entry_read(session, entry)
+    return _to_shooting_entry_read(session, entry, include_folder_photos=True)
 
 
 def list_shooting_entries(
@@ -550,6 +795,7 @@ def list_shooting_entries(
     page: int = 1,
     page_size: int = 20,
 ) -> ShootingEntryListResponse:
+    _sync_shooting_entry_folders(session)
     entries = session.exec(
         select(ShootingEntry).order_by(ShootingEntry.date.desc(), ShootingEntry.created_at.desc(), ShootingEntry.id.desc())
     ).all()
@@ -625,7 +871,7 @@ def update_shooting_entry(
 
     session.commit()
     session.refresh(entry)
-    return _to_shooting_entry_read(session, entry)
+    return _to_shooting_entry_read(session, entry, include_folder_photos=True)
 
 
 def delete_shooting_entry(session: Session, entry_id: int) -> bool:
@@ -635,6 +881,7 @@ def delete_shooting_entry(session: Session, entry_id: int) -> bool:
 
     photos = session.exec(select(ShootingEntryPhoto).where(ShootingEntryPhoto.entry_id == entry_id)).all()
     _delete_shooting_entry_photo_files(list(photos))
+    _delete_shooting_entry_folder(entry)
     session.exec(delete(ShootingEntryItem).where(ShootingEntryItem.entry_id == entry_id))
     session.exec(delete(ShootingEntryPhoto).where(ShootingEntryPhoto.entry_id == entry_id))
     session.delete(entry)
@@ -655,13 +902,13 @@ def create_shooting_entry_photo(
 
     extension = _validate_photo_upload(file_name, content_type, content)
     stored_name = f"{uuid4().hex}.{extension}"
-    relative_path = f"uploads/{stored_name}"
-    target_path = _upload_dir() / stored_name
+    relative_path = _shooting_entry_relative_dir(entry, create=True) / stored_name
+    target_path = _upload_target_path(relative_path)
     target_path.write_bytes(content)
 
     photo = ShootingEntryPhoto(
         entry_id=entry_id,
-        file_path=relative_path,
+        file_path=_stored_upload_path(relative_path),
         file_name=file_name,
         content_type=content_type,
         file_size=len(content),
@@ -674,10 +921,11 @@ def create_shooting_entry_photo(
 
 
 def list_shooting_entry_photos(session: Session, entry_id: int) -> list[ShootingEntryPhotoRead] | None:
+    _sync_shooting_entry_folders(session)
     entry = session.get(ShootingEntry, entry_id)
     if entry is None:
         return None
-    return _read_shooting_entry_photos(session, entry_id)
+    return _read_shooting_entry_photos(session, entry_id, include_folder_photos=True)
 
 
 def delete_shooting_entry_photo(session: Session, photo_id: int) -> bool:
