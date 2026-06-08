@@ -25,6 +25,55 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 - 图片：本地 `uploads/`
 - 部署：GHCR 镜像 + Docker Compose
 
+## 项目截图
+
+### 浅色模式
+
+#### 概览
+
+![概览 Light](./Readme_pictures/概览light.png)
+
+#### 器材
+
+![器材 Light](./Readme_pictures/器材light.png)
+
+#### 统计
+
+![统计 Light](./Readme_pictures/统计light.png)
+
+#### 照片
+
+![照片 Light](./Readme_pictures/照片light.png)
+
+### 深色模式
+
+#### 概览
+
+![概览 Dark](./Readme_pictures/概览dark.png)
+
+#### 器材
+
+![器材 Dark](./Readme_pictures/器材dark.png)
+
+#### 统计
+
+![统计 Dark](./Readme_pictures/统计dark.png)
+
+#### 照片
+
+![照片 Dark](./Readme_pictures/照片ldark.png)
+
+## 手机端适配
+
+当前前端已经按手机端做过以下适配：
+
+- 顶部导航和右上角工具区在小屏幕下会收成更紧凑的移动端布局，不继续沿用桌面三列头部结构
+- 列表和统计页面的网格会自动降列，器材卡片等密集内容在窄屏下会退化为单列或更少列展示
+- 卡片和内容区使用了 `w-full`、`max-w-full`、`min-w-0` 这类宽度约束，避免页面横向撑出屏幕
+- 长标题、标签和元信息会在需要时截断或换行，避免把布局挤出视口
+- 依赖 hover 的交互保留了移动端降级方式，手机端点击仍然可以正常进入详情页，不依赖悬停
+- 拍摄事项卡片、统计页内容和表单控件都压缩了间距并支持换行，保证窄屏下仍可操作
+
 ## 技术栈
 
 - 前端：Next.js App Router、TypeScript、Tailwind CSS、shadcn/ui、ECharts

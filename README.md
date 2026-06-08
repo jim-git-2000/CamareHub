@@ -25,6 +25,55 @@ Storage is intentionally simple:
 - images: local `uploads/`
 - deployment: GHCR images + Docker Compose
 
+## Screenshots
+
+### Light
+
+#### Dashboard
+
+![Dashboard Light](./Readme_pictures/概览light.png)
+
+#### Items
+
+![Items Light](./Readme_pictures/器材light.png)
+
+#### Stats
+
+![Stats Light](./Readme_pictures/统计light.png)
+
+#### Films
+
+![Films Light](./Readme_pictures/照片light.png)
+
+### Dark
+
+#### Dashboard
+
+![Dashboard Dark](./Readme_pictures/概览dark.png)
+
+#### Items
+
+![Items Dark](./Readme_pictures/器材dark.png)
+
+#### Stats
+
+![Stats Dark](./Readme_pictures/统计dark.png)
+
+#### Films
+
+![Films Dark](./Readme_pictures/照片ldark.png)
+
+## Mobile Adaptation
+
+The current frontend has been adjusted for phone-sized screens with these rules:
+
+- top navigation and header actions collapse into a compact mobile layout instead of keeping the desktop three-column header
+- grids switch down to fewer columns, and dense cards are reduced to single-column stacking on small screens
+- cards and content areas use width constraints such as `w-full`, `max-w-full`, and `min-w-0` to avoid horizontal overflow
+- long text is truncated or wrapped where needed so titles, badges, and metadata do not push the layout wider than the viewport
+- hover-only detail patterns keep mobile-safe fallback behavior, so tapping still goes to the detail page without depending on hover
+- shooting entry cards, stats content, and form controls use smaller spacing and wrapped layouts so they remain usable on narrow screens
+
 ## Stack
 
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, ECharts
