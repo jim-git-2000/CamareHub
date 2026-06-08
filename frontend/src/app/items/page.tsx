@@ -226,43 +226,46 @@ function ItemCard({ item, photo }: { item: ItemRead; photo?: PhotoRead | null })
   const thumbnail = photoSrc(photo);
 
   return (
-    <Link href={`/items/${item.id}`} className="group block h-full">
-      <Card className="h-full overflow-hidden transition-colors group-hover:border-primary/40">
-        <div className="aspect-[4/3] bg-muted">
+    <Link href={`/items/${item.id}`} className="group block h-full min-w-0 max-w-full">
+      <Card className="relative h-full w-full min-w-0 overflow-hidden transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-lg">
+        <div className="aspect-video bg-muted">
           {thumbnail ? (
             <img src={thumbnail} alt={`${item.brand} ${item.model}`} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-md border bg-background text-muted-foreground">
-                <ImageIcon className="h-7 w-7" aria-hidden="true" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-md border bg-background text-muted-foreground">
+                <ImageIcon className="h-6 w-6" aria-hidden="true" />
               </div>
             </div>
           )}
         </div>
 
-        <CardContent className="flex flex-col gap-4 p-4">
+        <CardContent className="relative flex flex-col gap-3 p-3.5">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-sm text-muted-foreground">{item.brand}</div>
-                <h2 className="mt-1 truncate text-base font-semibold tracking-normal">{item.model}</h2>
+                <h2 className="mt-1 truncate text-[15px] font-semibold tracking-normal">{item.model}</h2>
               </div>
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2.5 flex flex-wrap gap-2">
               <Badge variant="secondary">{typeLabel(item.type)}</Badge>
               <Badge variant="outline">{statusLabel(item.status)}</Badge>
             </div>
           </div>
 
-          <div className="mt-auto space-y-2">
-            <div>
-              <div className="break-words text-sm font-medium leading-5">{priceSummary(item)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">关键参数</div>
-              <div className="mt-0.5 line-clamp-2 min-h-10 text-sm">{keyParams(item)}</div>
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 hidden translate-y-2 rounded-lg border border-border/70 bg-background/95 p-3 opacity-0 shadow-lg backdrop-blur-sm transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 md:block dark:bg-card/95">
+            <div className="space-y-2.5">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">购买 / 估值</div>
+                <div className="mt-1 break-words text-sm font-medium leading-5 text-foreground">{priceSummary(item)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">关键参数</div>
+                <div className="mt-1 line-clamp-2 text-sm leading-5 text-foreground">{keyParams(item)}</div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -433,20 +436,16 @@ export default function ItemsPage() {
       {state.status === "loading" && state.items.length === 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (
-            <Card key={index} className="overflow-hidden">
-              <div className="aspect-[4/3] bg-muted" />
-              <CardContent className="space-y-4 p-4">
+            <Card key={index} className="w-full min-w-0 overflow-hidden">
+              <div className="aspect-video bg-muted" />
+              <CardContent className="space-y-3 p-3.5">
                 <div className="space-y-2">
                   <div className="h-3 w-20 rounded bg-muted" />
-                  <div className="h-5 w-32 rounded bg-muted" />
+                  <div className="h-5 w-28 rounded bg-muted" />
                 </div>
                 <div className="flex gap-2">
                   <div className="h-5 w-14 rounded bg-muted" />
                   <div className="h-5 w-16 rounded bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 w-16 rounded bg-muted" />
-                  <div className="h-4 w-24 rounded bg-muted" />
                 </div>
               </CardContent>
             </Card>
