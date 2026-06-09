@@ -37,6 +37,10 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 
 ![器材 Light](./Readme_pictures/器材light.png)
 
+#### 器材详情
+
+![器材详情 Light](./Readme_pictures/器材详情页light.png)
+
 #### 统计
 
 ![统计 Light](./Readme_pictures/统计light.png)
@@ -44,6 +48,14 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 #### 照片
 
 ![照片 Light](./Readme_pictures/照片light.png)
+
+#### 照片详情
+
+![照片详情 Light](./Readme_pictures/照片详情页light.png)
+
+#### 一言设置
+
+![一言设置 Light](./Readme_pictures/一言设置light.png)
 
 ### 深色模式
 
@@ -55,6 +67,10 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 
 ![器材 Dark](./Readme_pictures/器材dark.png)
 
+#### 器材详情
+
+![器材详情 Dark](./Readme_pictures/器材详情页dark.png)
+
 #### 统计
 
 ![统计 Dark](./Readme_pictures/统计dark.png)
@@ -62,6 +78,14 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 #### 照片
 
 ![照片 Dark](./Readme_pictures/照片ldark.png)
+
+#### 照片详情
+
+![照片详情 Dark](./Readme_pictures/照片详情页dark.png)
+
+#### 一言设置
+
+![一言设置 Dark](./Readme_pictures/一言设置dark.png)
 
 ## 手机端适配
 
@@ -92,136 +116,24 @@ uploads/
 docs/
 ```
 
-## 本地开发
+## Docker Compose 部署
 
-先启动后端，再启动前端。
-
-### 后端
-
-当前工作区可能不允许在 `backend/.venv` 中创建有效虚拟环境，建议使用项目外的 uv 环境：
-
-```bash
-cd backend
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv sync
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-健康检查：
-
-```text
-http://localhost:8000/api/health
-```
-
-### 前端
-
-```bash
-cd frontend
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
-```
-
-访问地址：
-
-```text
-http://localhost:3010
-```
-
-如果通过局域网其他机器访问，请把 `NEXT_PUBLIC_API_BASE_URL` 改成后端所在主机的 IP 和端口。
-
-## 版本与发布
-
-CameraHub 当前采用前后端统一版本号。
-
-版本文件：
-
-- [backend/pyproject.toml](backend/pyproject.toml)
-- [frontend/package.json](frontend/package.json)
-
-正式版本来源：
-
-- Git tag：`v0.1.0`
-- GHCR 镜像 tag：`0.1.0`
-
-每个镜像 package 应保留这些 tag：
-
-```text
-latest
-sha-<commit>
-0.1.0
-0.1
-```
-
-注意：
-
-- `latest` 表示当前默认最新镜像，不适合精确部署
-- 生产部署应优先使用固定版本，例如 `0.1.0`
-- GitHub Packages 中的版本号体现在镜像 tag，而不是分支名
-
-## GitHub 发布流程
-
-`docker-publish` 仍然采用 GitHub Actions **手动触发** 的方式。
-
-推荐发布顺序：
-
-1. 更新代码并确认 `backend/pyproject.toml` 和 `frontend/package.json` 中的版本号
-2. 提交并 push 到 `main`
-3. 创建并 push 对应的 Git tag，例如 `v0.1.0`
-4. 打开 GitHub Actions，手动运行 `docker-publish`
-5. 等待 GHCR 镜像发布完成
-6. 创建或补充对应的 GitHub Release
-
-示例命令：
-
-```bash
-git add .
-git commit -m "prepare release 0.1.0"
-git push origin main
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-当前 workflow 行为：
-
-- 支持 `workflow_dispatch` 手动触发
-- 支持 `push.tags: v*` tag 触发
-- 同时发布 backend 和 frontend 两个 GHCR 镜像
-
-## 已有 Package 如何体现 0.1.0
-
-如果当前 GHCR package 里只有 `latest` 或 `sha-...`，不能直接在 GitHub 上把它改名成 `0.1.0`。
-
-正确做法是：
-
-1. 确认当前仓库状态对应 `0.1.0`
-2. 确认两个版本文件都是 `0.1.0`
-3. push `v0.1.0`
-4. 运行 `docker-publish`
-5. 重新把同一套镜像以新 tag 发布：
-
-```text
-ghcr.io/jim-git-2000/camerahub-backend:0.1.0
-ghcr.io/jim-git-2000/camerahub-frontend:0.1.0
-```
-
-完成后，同一个 package 下应能看到：
-
-```text
-latest
-sha-xxxxxxx
-0.1.0
-0.1
-```
-
-## Docker 部署
-
-开发机不需要安装 Docker，只负责准备代码并触发 GitHub 发布。
-
-服务器需要：
+CameraHub 可以通过 Docker Compose 拉取 GHCR 上的预构建镜像完成部署。服务器需要：
 
 - Docker
 - Docker Compose plugin
 - 一个包含 `docker-compose.yml`、`.env`、`data/` 和 `uploads/` 的部署目录
 
-服务器最小目录结构：
+### 1. 准备部署目录
+
+在服务器上创建独立部署目录：
+
+```bash
+mkdir -p camerahub/data camerahub/uploads
+cd camerahub
+```
+
+推荐目录结构：
 
 ```text
 camerahub/
@@ -231,13 +143,23 @@ camerahub/
   uploads/
 ```
 
-部署 `.env` 示例：
+`data/` 保存 SQLite 数据库，`uploads/` 保存上传图片。升级时请保留这两个目录。
+
+### 2. 创建 `.env`
+
+如果希望部署可重复、方便回滚，建议使用固定版本：
 
 ```env
 CAMERAHUB_VERSION=0.1.0
 ```
 
-### `docker-compose.yml` 内容
+也可以使用 `latest`，但固定版本更适合长期使用：
+
+```env
+CAMERAHUB_VERSION=latest
+```
+
+### 3. 创建 `docker-compose.yml`
 
 服务器上可直接使用下面的文件：
 
@@ -271,36 +193,30 @@ services:
 - SQLite 数据和上传图片都保留在宿主机挂载目录中
 - `CAMERAHUB_VERSION` 用于控制拉取哪个 GHCR 版本
 
-### Docker Compose 操作步骤
+### 4. 拉取并启动
 
-服务器首次部署：
-
-```bash
-mkdir -p camerahub/data camerahub/uploads
-cd camerahub
-```
-
-创建 `.env`：
-
-```env
-CAMERAHUB_VERSION=0.1.0
-```
-
-创建 `docker-compose.yml` 后执行：
+拉取镜像并启动服务：
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-升级或重新启动：
+在浏览器中访问：
 
-```bash
-docker compose pull
-docker compose up -d
+```text
+http://服务器IP:3010
 ```
 
-查看状态：
+如果在服务器本机测试：
+
+```text
+http://localhost:3010
+```
+
+### 5. 查看运行状态
+
+查看容器状态：
 
 ```bash
 docker compose ps
@@ -312,22 +228,69 @@ docker compose ps
 docker compose logs -f
 ```
 
+只看后端日志：
+
+```bash
+docker compose logs -f backend
+```
+
+只看前端日志：
+
+```bash
+docker compose logs -f frontend
+```
+
+### 6. 升级
+
+如果需要切换版本，先修改 `.env`：
+
+```env
+CAMERAHUB_VERSION=0.1.0
+```
+
+然后重新拉取并创建容器：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Docker Compose 会继续使用宿主机上的 `./data` 和 `./uploads`。
+
+### 7. 回滚
+
+把 `.env` 改回上一个镜像版本：
+
+```env
+CAMERAHUB_VERSION=0.1.0
+```
+
+然后执行：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### 8. 重启或停止
+
 重启服务：
 
 ```bash
 docker compose restart
 ```
 
-停止服务：
+停止服务但不删除数据：
 
 ```bash
 docker compose down
 ```
 
-默认访问地址：
+确认不再需要旧镜像时，可以停止后清理未使用镜像：
 
-```text
-http://服务器IP:3010
+```bash
+docker compose down
+docker image prune
 ```
 
 当前 compose 文件解析出的镜像为：
@@ -341,45 +304,6 @@ ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
 
 - 不设置 `CAMERAHUB_VERSION`：部署 `latest`
 - 设置 `CAMERAHUB_VERSION=0.1.0`：部署正式版本 `0.1.0`
-
-## 回滚
-
-如果要从 `0.2.0` 回滚到 `0.1.0`，修改服务器 `.env`：
-
-```env
-CAMERAHUB_VERSION=0.1.0
-```
-
-然后执行：
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-## 环境变量
-
-复制模板：
-
-```bash
-cp .env.example .env
-```
-
-常用变量：
-
-```env
-CAMERAHUB_VERSION=0.1.0
-DATABASE_URL=sqlite:///./data/gear.db
-UPLOAD_DIR=./uploads
-BACKEND_CORS_ORIGINS=http://localhost:3010,http://127.0.0.1:3010,http://192.168.32.123:3010
-APP_NAME=CameraHub
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-```
-
-说明：
-
-- `CAMERAHUB_VERSION` 主要用于服务器侧 Docker Compose 部署
-- 本地开发仍然可以继续使用前后端分开启动的方式
 
 ## 数据与图片
 
@@ -397,7 +321,7 @@ uploads/
 
 数据库保存相对路径，上传图片通过后端 `/uploads/...` 提供访问。
 
-## 备份
+### 备份
 
 备份数据库：
 
@@ -425,29 +349,9 @@ cp backups/gear-YYYYMMDD.db data/gear.db
 tar -xzf backups/uploads-YYYYMMDD.tar.gz
 ```
 
-## 常见问题
+## 上传
 
-### `backend/.venv` 不是有效 Python 环境
-
-```bash
-cd backend
-rm -rf .venv
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv sync
-```
-
-### 前端显示 `API error` 或 `Failed to fetch`
-
-请检查：
-
-- backend 是否运行在 `8000`
-- `NEXT_PUBLIC_API_BASE_URL` 是否指向正确地址
-- 如果浏览器直接访问 backend，`BACKEND_CORS_ORIGINS` 是否包含前端实际访问地址
-
-### `/api/stats/summary` 返回 `404`
-
-通常是后端进程仍是旧版本，重启后端即可。
-
-### 图片上传失败
+CameraHub 会把上传图片保存到 `uploads/`，并在 SQLite 中记录相对路径。迁移到另一台服务器时，请同时迁移 `data/gear.db` 和 `uploads/`。
 
 当前支持的图片格式：
 
@@ -464,7 +368,15 @@ webp
 10MB
 ```
 
-## 文档
+如果上传失败，请检查：
 
-- API 文档：[docs/api.md](docs/api.md)
-- 数据库文档：[docs/database.md](docs/database.md)
+- 文件格式是否受支持
+- 文件大小是否超过限制
+- 服务器是否对 `./uploads` 有写入权限
+- 后端容器是否正在运行：`docker compose ps`
+
+上传后的图片访问路径类似：
+
+```text
+/uploads/...
+```

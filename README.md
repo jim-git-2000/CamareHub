@@ -37,13 +37,25 @@ Storage is intentionally simple:
 
 ![Items Light](./Readme_pictures/器材light.png)
 
+#### Item Detail
+
+![Item Detail Light](./Readme_pictures/器材详情页light.png)
+
 #### Stats
 
 ![Stats Light](./Readme_pictures/统计light.png)
 
-#### Films
+#### Photos
 
-![Films Light](./Readme_pictures/照片light.png)
+![Photos Light](./Readme_pictures/照片light.png)
+
+#### Photo Detail
+
+![Photo Detail Light](./Readme_pictures/照片详情页light.png)
+
+#### Quote Settings
+
+![Quote Settings Light](./Readme_pictures/一言设置light.png)
 
 ### Dark
 
@@ -55,13 +67,25 @@ Storage is intentionally simple:
 
 ![Items Dark](./Readme_pictures/器材dark.png)
 
+#### Item Detail
+
+![Item Detail Dark](./Readme_pictures/器材详情页dark.png)
+
 #### Stats
 
 ![Stats Dark](./Readme_pictures/统计dark.png)
 
-#### Films
+#### Photos
 
-![Films Dark](./Readme_pictures/照片ldark.png)
+![Photos Dark](./Readme_pictures/照片ldark.png)
+
+#### Photo Detail
+
+![Photo Detail Dark](./Readme_pictures/照片详情页dark.png)
+
+#### Quote Settings
+
+![Quote Settings Dark](./Readme_pictures/一言设置dark.png)
 
 ## Mobile Adaptation
 
@@ -92,136 +116,24 @@ uploads/
 docs/
 ```
 
-## Local Development
+## Docker Compose Deployment
 
-Start backend first, then frontend.
-
-### Backend
-
-The workspace may not allow a valid virtualenv inside `backend/.venv`. Use an external uv environment:
-
-```bash
-cd backend
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv sync
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Health check:
-
-```text
-http://localhost:8000/api/health
-```
-
-### Frontend
-
-```bash
-cd frontend
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3010
-```
-
-If you are accessing from another machine on the LAN, set `NEXT_PUBLIC_API_BASE_URL` to the backend host IP and port.
-
-## Versioning and Releases
-
-CameraHub uses one shared release version for both backend and frontend.
-
-Current release files:
-
-- [backend/pyproject.toml](backend/pyproject.toml)
-- [frontend/package.json](frontend/package.json)
-
-Release source of truth:
-
-- Git tag: `v0.1.0`
-- GHCR image tag: `0.1.0`
-
-Each image package should expose tags like:
-
-```text
-latest
-sha-<commit>
-0.1.0
-0.1
-```
-
-Important:
-
-- `latest` is the newest default image, not a stable deployment target
-- precise deployment should use a fixed version such as `0.1.0`
-- GitHub Packages version visibility comes from image tags, not branch names
-
-## GitHub Publish Flow
-
-`docker-publish` remains a manual GitHub Actions workflow.
-
-Recommended release flow:
-
-1. Update code and confirm the release version in `backend/pyproject.toml` and `frontend/package.json`
-2. Commit and push to `main`
-3. Create and push a Git tag such as `v0.1.0`
-4. Open GitHub Actions and manually run `docker-publish`
-5. Wait for GHCR images to finish publishing
-6. Create or update the matching GitHub Release
-
-Commands:
-
-```bash
-git add .
-git commit -m "prepare release 0.1.0"
-git push origin main
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Current workflow behavior:
-
-- manual trigger via `workflow_dispatch`
-- tag trigger via `push.tags: v*`
-- pushes backend and frontend images to GHCR
-
-## Existing Package to 0.1.0
-
-If the existing GHCR package only has `latest` or `sha-...`, it cannot be renamed in place to `0.1.0`.
-
-The correct process is:
-
-1. Make sure the repo state corresponds to release `0.1.0`
-2. Make sure both version files are `0.1.0`
-3. Push tag `v0.1.0`
-4. Run `docker-publish`
-5. Publish the same images again with the new GHCR tags:
-
-```text
-ghcr.io/jim-git-2000/camerahub-backend:0.1.0
-ghcr.io/jim-git-2000/camerahub-frontend:0.1.0
-```
-
-After that, the same package should show multiple tags under one package:
-
-```text
-latest
-sha-xxxxxxx
-0.1.0
-0.1
-```
-
-## Docker Deployment
-
-The development machine does not need Docker. It only prepares code and triggers GitHub publishing.
-
-The server needs:
+CameraHub can be deployed by pulling prebuilt GHCR images with Docker Compose. The server needs:
 
 - Docker
 - Docker Compose plugin
 - a deployment directory with `docker-compose.yml`, `.env`, `data/`, and `uploads/`
 
-Minimal server layout:
+### 1. Prepare the deployment directory
+
+Create a dedicated directory on the server:
+
+```bash
+mkdir -p camerahub/data camerahub/uploads
+cd camerahub
+```
+
+Recommended directory layout:
 
 ```text
 camerahub/
@@ -231,13 +143,23 @@ camerahub/
   uploads/
 ```
 
-Example `.env` for deployment:
+`data/` stores the SQLite database. `uploads/` stores uploaded images. Keep both directories when upgrading.
+
+### 2. Create `.env`
+
+Use a fixed version when you want repeatable deployment:
 
 ```env
 CAMERAHUB_VERSION=0.1.0
 ```
 
-### `docker-compose.yml` content
+You can also use `latest`, but a fixed version is easier to roll back:
+
+```env
+CAMERAHUB_VERSION=latest
+```
+
+### 3. Create `docker-compose.yml`
 
 Use this file on the server:
 
@@ -271,36 +193,30 @@ Notes:
 - uploaded files and SQLite data stay on the host through mounted volumes
 - `CAMERAHUB_VERSION` controls which GHCR image version will be pulled
 
-### Docker Compose operations
+### 4. Pull and start
 
-First deployment on the server:
-
-```bash
-mkdir -p camerahub/data camerahub/uploads
-cd camerahub
-```
-
-Create `.env`:
-
-```env
-CAMERAHUB_VERSION=0.1.0
-```
-
-Create `docker-compose.yml`, then run:
+Pull images and start services:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Start or upgrade:
+Open CameraHub in a browser:
 
-```bash
-docker compose pull
-docker compose up -d
+```text
+http://SERVER_IP:3010
 ```
 
-Check status:
+For local testing on the server itself:
+
+```text
+http://localhost:3010
+```
+
+### 5. Check runtime status
+
+Check containers:
 
 ```bash
 docker compose ps
@@ -312,39 +228,38 @@ View logs:
 docker compose logs -f
 ```
 
-Restart services:
+View only backend logs:
 
 ```bash
-docker compose restart
+docker compose logs -f backend
 ```
 
-Stop services:
+View only frontend logs:
 
 ```bash
-docker compose down
+docker compose logs -f frontend
 ```
 
-Default access:
+### 6. Upgrade
 
-```text
-http://SERVER_IP:3010
+Edit `.env` if you want to switch versions:
+
+```env
+CAMERAHUB_VERSION=0.1.0
 ```
 
-Current compose file resolves images as:
+Then pull and recreate containers:
 
-```text
-ghcr.io/jim-git-2000/camerahub-backend:${CAMERAHUB_VERSION:-latest}
-ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
+```bash
+docker compose pull
+docker compose up -d
 ```
 
-This means:
+Docker Compose keeps `./data` and `./uploads` because they are mounted host directories.
 
-- no `CAMERAHUB_VERSION` => deploy `latest`
-- `CAMERAHUB_VERSION=0.1.0` => deploy release `0.1.0`
+### 7. Roll back
 
-## Rollback
-
-To roll back from `0.2.0` to `0.1.0`, edit server `.env`:
+Change `.env` back to the previous image version:
 
 ```env
 CAMERAHUB_VERSION=0.1.0
@@ -357,31 +272,40 @@ docker compose pull
 docker compose up -d
 ```
 
-## Environment Variables
+### 8. Restart or stop
 
-Copy the template:
+Restart services:
 
 ```bash
-cp .env.example .env
+docker compose restart
 ```
 
-Common variables:
+Stop services without deleting data:
 
-```env
-CAMERAHUB_VERSION=0.1.0
-DATABASE_URL=sqlite:///./data/gear.db
-UPLOAD_DIR=./uploads
-BACKEND_CORS_ORIGINS=http://localhost:3010,http://127.0.0.1:3010,http://192.168.32.123:3010
-APP_NAME=CameraHub
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```bash
+docker compose down
 ```
 
-Notes:
+Stop services and remove unused pulled images only when you are sure they are no longer needed:
 
-- `CAMERAHUB_VERSION` is mainly used by server-side Docker Compose deployment
-- local development can keep using direct frontend/backend startup commands
+```bash
+docker compose down
+docker image prune
+```
 
-## Data and Uploads
+The compose file resolves images as:
+
+```text
+ghcr.io/jim-git-2000/camerahub-backend:${CAMERAHUB_VERSION:-latest}
+ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
+```
+
+This means:
+
+- no `CAMERAHUB_VERSION` => deploy `latest`
+- `CAMERAHUB_VERSION=0.1.0` => deploy release `0.1.0`
+
+## Data and Images
 
 Default database file:
 
@@ -397,7 +321,7 @@ uploads/
 
 The database stores relative paths. Uploaded files are served through backend `/uploads/...`.
 
-## Backup
+### Backup
 
 Backup database:
 
@@ -425,29 +349,9 @@ Restore uploads:
 tar -xzf backups/uploads-YYYYMMDD.tar.gz
 ```
 
-## Troubleshooting
+## Uploads
 
-### `backend/.venv` is not a valid Python environment
-
-```bash
-cd backend
-rm -rf .venv
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/camerahub-backend" uv sync
-```
-
-### Frontend shows `API error` or `Failed to fetch`
-
-Check:
-
-- backend is running on port `8000`
-- `NEXT_PUBLIC_API_BASE_URL` points to the correct backend address
-- `BACKEND_CORS_ORIGINS` includes the actual frontend origin when calling backend directly
-
-### `/api/stats/summary` returns `404`
-
-Usually the backend process is outdated. Restart the backend service.
-
-### Upload fails
+CameraHub stores uploaded images under `uploads/` and records relative paths in SQLite. Keep `uploads/` together with `data/gear.db` when migrating to another server.
 
 Supported image formats:
 
@@ -464,7 +368,15 @@ Current per-file limit:
 10MB
 ```
 
-## Docs
+If upload fails, check:
 
-- API docs: [docs/api.md](docs/api.md)
-- Database docs: [docs/database.md](docs/database.md)
+- the file format is supported
+- the file size is within the limit
+- the server has write permission for `./uploads`
+- the backend container is running: `docker compose ps`
+
+Uploaded images are available through paths like:
+
+```text
+/uploads/...
+```
