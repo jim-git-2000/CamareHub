@@ -173,31 +173,115 @@ def _ensure_shooting_entries_dir() -> Path:
     return path
 
 
-def _find_shooting_entry_folder(entry_id: int) -> Path | None:
+def _find_shooting_entry_folders(entry_id: int) -> list[Path]:
     prefix = f"{entry_id}-"
     root = _ensure_shooting_entries_dir()
-    for folder in root.iterdir():
-        if folder.is_dir() and folder.name.startswith(prefix):
-            return folder
-    return None
+    return sorted(
+        (folder for folder in root.iterdir() if folder.is_dir() and folder.name.startswith(prefix)),
+        key=lambda folder: folder.name.lower(),
+    )
 
 
-def _shooting_entry_folder_path(entry: ShootingEntry, create: bool = False) -> Path:
+def _find_shooting_entry_folder(entry_id: int) -> Path | None:
+    folders = _find_shooting_entry_folders(entry_id)
+    return folders[0] if folders else None
+
+
+def _rewrite_shooting_entry_photo_folder_paths(
+    session: Session,
+    entry_id: int,
+    old_folder_name: str,
+    new_folder_name: str,
+) -> None:
+    photos = session.exec(select(ShootingEntryPhoto).where(ShootingEntryPhoto.entry_id == entry_id)).all()
+    changed = False
+
+    for photo in photos:
+        photo_changed = False
+        for field_name in ("file_path", "thumbnail_path"):
+            value = getattr(photo, field_name)
+            if not value:
+                continue
+
+            relative_path = _upload_relative_path(value)
+            if (
+                relative_path is None
+                or len(relative_path.parts) < 3
+                or relative_path.parts[0] != SHOOTING_ENTRIES_UPLOAD_DIR
+                or relative_path.parts[1] != old_folder_name
+            ):
+                continue
+
+            next_path = Path(SHOOTING_ENTRIES_UPLOAD_DIR) / new_folder_name / Path(*relative_path.parts[2:])
+            setattr(photo, field_name, _stored_upload_path(next_path))
+            photo_changed = True
+
+        if photo_changed:
+            session.add(photo)
+            changed = True
+
+    if changed:
+        session.commit()
+
+
+def _merge_shooting_entry_folder(source: Path, target: Path) -> None:
+    target.mkdir(parents=True, exist_ok=True)
+    for child in source.iterdir():
+        destination = target / child.name
+        if not destination.exists():
+            child.rename(destination)
+    try:
+        source.rmdir()
+    except OSError:
+        pass
+
+
+def _sync_shooting_entry_folder_name(session: Session, entry: ShootingEntry, create: bool = False) -> Path:
     if entry.id is None:
         raise ValueError("Shooting entry id is required")
 
-    existing = _find_shooting_entry_folder(entry.id)
-    if existing is not None:
+    root = _ensure_shooting_entries_dir()
+    target = root / _shooting_entry_folder(entry)
+    folders = _find_shooting_entry_folders(entry.id)
+    existing = target if target in folders else (folders[0] if folders else None)
+
+    if existing is None:
+        if create:
+            target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    if existing == target:
+        for folder in folders:
+            if folder == target:
+                continue
+            old_folder_name = folder.name
+            _merge_shooting_entry_folder(folder, target)
+            _rewrite_shooting_entry_photo_folder_paths(session, entry.id, old_folder_name, target.name)
+        return target
+
+    root_resolved = root.resolve(strict=False)
+    existing_resolved = existing.resolve(strict=False)
+    target_resolved = target.resolve(strict=False)
+    try:
+        existing_resolved.relative_to(root_resolved)
+        target_resolved.relative_to(root_resolved)
+    except ValueError:
         return existing
 
-    path = _shooting_entries_dir() / _shooting_entry_folder(entry)
-    if create:
-        path.mkdir(parents=True, exist_ok=True)
-    return path
+    old_folder_name = existing.name
+    if target.exists() and target.is_dir():
+        _merge_shooting_entry_folder(existing, target)
+    elif not target.exists():
+        existing.rename(target)
+    else:
+        return existing
+
+    _rewrite_shooting_entry_photo_folder_paths(session, entry.id, old_folder_name, target.name)
+    return target
 
 
-def _shooting_entry_relative_dir(entry: ShootingEntry, create: bool = False) -> Path:
-    folder = _shooting_entry_folder_path(entry, create=create)
+def _shooting_entry_synced_relative_dir(session: Session, entry: ShootingEntry, create: bool = False) -> Path:
+    folder = _sync_shooting_entry_folder_name(session, entry, create=create)
     return Path(SHOOTING_ENTRIES_UPLOAD_DIR) / folder.name
 
 
@@ -277,7 +361,10 @@ def _generate_thumbnail(source_path: Path, original_file_path: str) -> str | Non
 
 def _ensure_photo_thumbnail(photo: Photo | ShootingEntryPhoto) -> None:
     if photo.thumbnail_path:
-        return
+        thumbnail_relative_path = _upload_relative_path(photo.thumbnail_path)
+        if thumbnail_relative_path is not None and (_upload_dir() / thumbnail_relative_path).is_file():
+            return
+        photo.thumbnail_path = None
 
     relative_path = _upload_relative_path(photo.file_path)
     if relative_path is None:
@@ -286,6 +373,19 @@ def _ensure_photo_thumbnail(photo: Photo | ShootingEntryPhoto) -> None:
     thumbnail_path = _generate_thumbnail(_upload_dir() / relative_path, photo.file_path)
     if thumbnail_path is not None:
         photo.thumbnail_path = thumbnail_path
+
+
+def _ensure_photo_thumbnails(session: Session, photos: list[Photo | ShootingEntryPhoto]) -> None:
+    changed = False
+    for photo in photos:
+        original_thumbnail_path = photo.thumbnail_path
+        _ensure_photo_thumbnail(photo)
+        if photo.thumbnail_path != original_thumbnail_path:
+            session.add(photo)
+            changed = True
+
+    if changed:
+        session.commit()
 
 
 def _delete_upload_files(file_paths: list[str]) -> None:
@@ -416,7 +516,7 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
     if entry.id is None:
         return
 
-    folder = _shooting_entry_folder_path(entry)
+    folder = _sync_shooting_entry_folder_name(session, entry)
     if not folder.exists() or not folder.is_dir():
         return
 
@@ -440,40 +540,20 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
             continue
 
         stat = path.stat()
-        session.add(
-            ShootingEntryPhoto(
-                entry_id=entry.id,
-                file_path=_stored_upload_path(relative_path),
-                file_name=path.name,
-                content_type=_photo_content_type(path),
-                file_size=stat.st_size,
-                dominant_color=None,
-                created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
-            )
+        photo = ShootingEntryPhoto(
+            entry_id=entry.id,
+            file_path=_stored_upload_path(relative_path),
+            file_name=path.name,
+            content_type=_photo_content_type(path),
+            file_size=stat.st_size,
+            dominant_color=None,
+            created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
         )
+        _ensure_photo_thumbnail(photo)
+        session.add(photo)
         changed = True
 
     if changed:
-        session.commit()
-
-    _ensure_shooting_entry_cover_thumbnail(session, entry.id)
-
-
-def _ensure_shooting_entry_cover_thumbnail(session: Session, entry_id: int | None) -> None:
-    if entry_id is None:
-        return
-
-    cover = session.exec(
-        select(ShootingEntryPhoto)
-        .where(ShootingEntryPhoto.entry_id == entry_id)
-        .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
-    ).first()
-    if cover is None or cover.thumbnail_path:
-        return
-
-    _ensure_photo_thumbnail(cover)
-    if cover.thumbnail_path:
-        session.add(cover)
         session.commit()
 
 
@@ -492,6 +572,7 @@ def _read_shooting_entry_photos(
         .where(ShootingEntryPhoto.entry_id == entry_id)
         .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
     ).all()
+    _ensure_photo_thumbnails(session, list(photos))
     result = [_to_shooting_entry_photo_read(photo) for photo in photos]
 
     return result
@@ -596,6 +677,10 @@ def _sync_shooting_entry_folders(session: Session) -> None:
         if folder != target and not target.exists():
             folder.rename(target)
         changed = True
+
+    for entry in existing_entries:
+        if entry.id is not None and entry.id in existing_ids:
+            _sync_shooting_entry_folder_name(session, entry, create=True)
 
     if changed:
         session.commit()
@@ -815,6 +900,7 @@ def list_photos(session: Session, item_id: int) -> list[PhotoRead] | None:
         .order_by(Photo.sort_order, Photo.created_at, Photo.id)
     )
     photos = session.exec(statement).all()
+    _ensure_photo_thumbnails(session, list(photos))
     return [_to_photo_read(photo) for photo in photos]
 
 
@@ -844,10 +930,11 @@ def create_shooting_entry(session: Session, payload: ShootingEntryCreate) -> Sho
 
     if entry.id is None:
         raise ValueError("Shooting entry was not created")
-    _shooting_entry_folder_path(entry, create=True)
+    _sync_shooting_entry_folder_name(session, entry, create=True)
     _set_shooting_entry_items(session, entry.id, payload.item_links)
     session.commit()
     session.refresh(entry)
+    _sync_shooting_entry_folder_name(session, entry, create=True)
     return _to_shooting_entry_read(session, entry, include_folder_photos=True)
 
 
@@ -974,12 +1061,9 @@ def create_shooting_entry_photo(
     if entry is None:
         return None
 
-    existing_photo_count = session.exec(
-        select(func.count(ShootingEntryPhoto.id)).where(ShootingEntryPhoto.entry_id == entry_id)
-    ).one()
     extension = _validate_photo_upload(file_name, content_type, content)
     stored_name = f"{uuid4().hex}.{extension}"
-    relative_path = _shooting_entry_relative_dir(entry, create=True) / stored_name
+    relative_path = _shooting_entry_synced_relative_dir(session, entry, create=True) / stored_name
     target_path = _upload_target_path(relative_path)
     target_path.write_bytes(content)
 
@@ -991,8 +1075,7 @@ def create_shooting_entry_photo(
         file_size=len(content),
         dominant_color=calculate_dominant_color(content),
     )
-    if existing_photo_count == 0:
-        _ensure_photo_thumbnail(photo)
+    _ensure_photo_thumbnail(photo)
     session.add(photo)
     session.commit()
     session.refresh(photo)

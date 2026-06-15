@@ -51,8 +51,16 @@ type DetailState =
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxPhotoSizeBytes = 10 * 1024 * 1024;
 
-function photoSrc(photo: ShootingEntryPhotoRead): string {
+function originalPhotoSrc(photo: ShootingEntryPhotoRead): string {
   return photo.url.startsWith("http") ? photo.url : `${API_BASE_URL}${photo.url}`;
+}
+
+function thumbnailPhotoSrc(photo: ShootingEntryPhotoRead): string | null {
+  if (!photo.thumbnail_url) {
+    return null;
+  }
+
+  return photo.thumbnail_url.startsWith("http") ? photo.thumbnail_url : `${API_BASE_URL}${photo.thumbnail_url}`;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -368,15 +376,23 @@ export default function ShootingEntryDetailPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {entry.photos.map((photo) => {
                 const isCover = photo.id === coverPhotoId;
+                const thumbnail = thumbnailPhotoSrc(photo);
 
                 return (
                   <div key={photo.id} className="overflow-hidden rounded-md border">
-                    <a href={photoSrc(photo)} target="_blank" rel="noreferrer" className="group block">
-                      <img
-                        src={photoSrc(photo)}
-                        alt={photo.file_name}
-                        className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90"
-                      />
+                    <a href={originalPhotoSrc(photo)} target="_blank" rel="noreferrer" className="group block">
+                      {thumbnail ? (
+                        <img
+                          src={thumbnail}
+                          alt={photo.file_name}
+                          className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90"
+                        />
+                      ) : (
+                        <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-muted px-3 text-center text-sm text-muted-foreground">
+                          <ImageIcon className="h-7 w-7" aria-hidden="true" />
+                          缩略图生成失败
+                        </div>
+                      )}
                     </a>
                     <div className="space-y-2 px-3 py-2">
                       <div className="flex items-start justify-between gap-3">
