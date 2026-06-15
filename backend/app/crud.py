@@ -464,19 +464,12 @@ def _photo_content_type(path: Path) -> str | None:
     }.get(extension)
 
 
-def calculate_dominant_color(content: bytes) -> str | None:
-    try:
-        from io import BytesIO
-
-        with Image.open(BytesIO(content)) as image:
-            image = image.convert("RGB")
-            source_width, source_height = image.size
-            crop_width = max(1, round(source_width * 0.28))
-            image = image.crop((0, 0, crop_width, source_height)).resize((28, 28))
-            pixels = list(image.getdata())
-    except Exception:
-        return None
-
+def _dominant_color_from_image(image: Image.Image) -> str | None:
+    image = image.convert("RGB")
+    source_width, source_height = image.size
+    crop_width = max(1, round(source_width * 0.28))
+    image = image.crop((0, 0, crop_width, source_height)).resize((28, 28))
+    pixels = list(image.getdata())
     if not pixels:
         return None
 
@@ -488,6 +481,47 @@ def calculate_dominant_color(content: bytes) -> str | None:
     green = round(green + (255 - green) * mix)
     blue = round(blue + (255 - blue) * mix)
     return f"#{red:02x}{green:02x}{blue:02x}"
+
+
+def calculate_dominant_color(content: bytes) -> str | None:
+    try:
+        from io import BytesIO
+
+        with Image.open(BytesIO(content)) as image:
+            return _dominant_color_from_image(image)
+    except Exception:
+        return None
+
+
+def _calculate_photo_dominant_color(file_path: str) -> str | None:
+    relative_path = _upload_relative_path(file_path)
+    if relative_path is None:
+        return None
+
+    try:
+        with Image.open(_upload_dir() / relative_path) as image:
+            return _dominant_color_from_image(image)
+    except Exception:
+        return None
+
+
+def _ensure_shooting_entry_photo_dominant_color(photo: ShootingEntryPhoto) -> None:
+    if photo.dominant_color:
+        return
+
+    photo.dominant_color = _calculate_photo_dominant_color(photo.file_path)
+
+
+def _ensure_shooting_entry_cover_dominant_color(session: Session, photos: list[ShootingEntryPhoto]) -> None:
+    if not photos:
+        return
+
+    cover = photos[0]
+    original_dominant_color = cover.dominant_color
+    _ensure_shooting_entry_photo_dominant_color(cover)
+    if cover.dominant_color != original_dominant_color:
+        session.add(cover)
+        session.commit()
 
 
 def _to_item_read(session: Session, item: Item) -> ItemRead:
@@ -546,10 +580,10 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
             file_name=path.name,
             content_type=_photo_content_type(path),
             file_size=stat.st_size,
-            dominant_color=None,
             created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
         )
         _ensure_photo_thumbnail(photo)
+        _ensure_shooting_entry_photo_dominant_color(photo)
         session.add(photo)
         changed = True
 
@@ -573,6 +607,7 @@ def _read_shooting_entry_photos(
         .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
     ).all()
     _ensure_photo_thumbnails(session, list(photos))
+    _ensure_shooting_entry_cover_dominant_color(session, list(photos))
     result = [_to_shooting_entry_photo_read(photo) for photo in photos]
 
     return result
@@ -1114,6 +1149,7 @@ def set_shooting_entry_cover_photo(session: Session, photo_id: int) -> ShootingE
 
     photo.sort_order = 0
     _ensure_photo_thumbnail(photo)
+    _ensure_shooting_entry_photo_dominant_color(photo)
     session.add(photo)
     next_order = 1
     for item in photos:
