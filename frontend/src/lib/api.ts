@@ -226,7 +226,7 @@ type ListShootingEntriesParams = {
 
 export function listShootingEntries(params: ListShootingEntriesParams = {}): Promise<ShootingEntryListResponse> {
   const query = toQueryString(params);
-  return apiRequest<ShootingEntryListResponse>(`/api/shooting-entries${query ? `?${query}` : ""}`);
+  return apiRequest<ShootingEntryListResponse>(`/api/shooting-entries${query ? `?${query}` : ""}`, { timeoutMs: 15000 });
 }
 
 export function getShootingEntry(entryId: number): Promise<ShootingEntryRead> {
@@ -270,5 +270,8 @@ export function deleteShootingEntryPhoto(photoId: number): Promise<void> {
 }
 
 export function setShootingEntryCoverPhoto(photoId: number): Promise<ShootingEntryPhotoRead> {
-  return apiRequest<ShootingEntryPhotoRead>(`/api/shooting-entry-photos/${photoId}/cover`, { method: "PUT" });
+  return apiRequest<ShootingEntryPhotoRead>(`/api/shooting-entry-photos/${photoId}/cover`, {
+    method: "PUT",
+    timeoutMs: 15000
+  });
 }

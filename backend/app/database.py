@@ -1,7 +1,7 @@
 from pathlib import Path
 from urllib.parse import quote
 
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -25,7 +25,7 @@ def _resolve_sqlite_url(database_url: str) -> str:
         db_path = PROJECT_ROOT / db_path
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    sqlite_file_uri = f"file:{quote(db_path.as_posix())}?mode=rwc"
+    sqlite_file_uri = f"file:{quote(db_path.as_posix())}?mode=rwc&nolock=1"
     return f"{prefix}{sqlite_file_uri}&uri=true"
 
 
@@ -33,19 +33,10 @@ DATABASE_URL = _resolve_sqlite_url(settings.database_url)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False, "uri": True, "timeout": 30}
+    connect_args={"check_same_thread": False, "uri": True}
     if DATABASE_URL.startswith("sqlite")
     else {},
 )
-
-
-if DATABASE_URL.startswith("sqlite"):
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_busy_timeout(dbapi_connection, connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA busy_timeout = 30000")
-        cursor.close()
 
 
 def create_db_and_tables() -> None:
@@ -60,7 +51,6 @@ def _ensure_sqlite_columns() -> None:
         return
 
     with engine.begin() as connection:
-        connection.exec_driver_sql("PRAGMA busy_timeout = 30000")
         shooting_entry_photo_columns = {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(shooting_entry_photos)").fetchall()
         }

@@ -56,6 +56,7 @@ VALID_SORTS = {
     "-purchase_date": Item.purchase_date.desc(),
 }
 _SHOOTING_ENTRY_PHOTO_SYNC_LOCK = RLock()
+_SHOOTING_ENTRY_FOLDER_SYNC_LOCK = RLock()
 
 
 def _item_order_by(sort: str | None):
@@ -550,7 +551,8 @@ def _read_shooting_entry_items(session: Session, entry_id: int) -> list[Shooting
 
 
 def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -> None:
-    if entry.id is None:
+    entry_id = entry.id
+    if entry_id is None:
         return
 
     with _SHOOTING_ENTRY_PHOTO_SYNC_LOCK:
@@ -558,16 +560,16 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
         if not folder.exists() or not folder.is_dir():
             return
 
-        photos = session.exec(
-            select(ShootingEntryPhoto)
-            .where(ShootingEntryPhoto.entry_id == entry.id)
+        existing_file_paths = session.exec(
+            select(ShootingEntryPhoto.file_path).where(ShootingEntryPhoto.entry_id == entry_id)
         ).all()
+        session.rollback()
         seen_paths = {
             relative_path.as_posix()
-            for photo in photos
-            if (relative_path := _upload_relative_path(photo.file_path)) is not None
+            for file_path in existing_file_paths
+            if (relative_path := _upload_relative_path(file_path)) is not None
         }
-        changed = False
+        new_photos: list[ShootingEntryPhoto] = []
 
         for path in sorted(folder.iterdir(), key=lambda item: item.name.lower()):
             if not path.is_file() or path.suffix.lower().lstrip(".") not in ALLOWED_PHOTO_EXTENSIONS:
@@ -580,7 +582,7 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
 
             stat = path.stat()
             photo = ShootingEntryPhoto(
-                entry_id=entry.id,
+                entry_id=entry_id,
                 file_path=_stored_upload_path(relative_path),
                 file_name=path.name,
                 content_type=_photo_content_type(path),
@@ -589,12 +591,13 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
             )
             _ensure_photo_thumbnail(photo)
             _ensure_shooting_entry_photo_dominant_color(photo)
-            session.add(photo)
+            new_photos.append(photo)
             seen_paths.add(relative_path_key)
-            changed = True
 
-        if changed:
+        if new_photos:
             try:
+                for photo in new_photos:
+                    session.add(photo)
                 session.commit()
             except IntegrityError:
                 session.rollback()
@@ -632,6 +635,26 @@ def _to_shooting_entry_read(
     data["item_links"] = _read_shooting_entry_items(session, entry.id or 0)
     data["photos"] = photos
     data["photo_count"] = len(photos)
+    return ShootingEntryRead.model_validate(data)
+
+
+def _to_shooting_entry_list_read(session: Session, entry: ShootingEntry) -> ShootingEntryRead:
+    data = entry.model_dump()
+    cover_photo = session.exec(
+        select(ShootingEntryPhoto)
+        .where(ShootingEntryPhoto.entry_id == entry.id)
+        .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
+        .limit(1)
+    ).first()
+    photo_count = session.exec(
+        select(func.count())
+        .select_from(ShootingEntryPhoto)
+        .where(ShootingEntryPhoto.entry_id == entry.id)
+    ).one()
+
+    data["item_links"] = _read_shooting_entry_items(session, entry.id or 0)
+    data["photos"] = [_to_shooting_entry_photo_read(cover_photo)] if cover_photo is not None else []
+    data["photo_count"] = photo_count
     return ShootingEntryRead.model_validate(data)
 
 
@@ -678,45 +701,41 @@ def _delete_shooting_entry_folder(entry: ShootingEntry) -> None:
 
 
 def _sync_shooting_entry_folders(session: Session) -> None:
-    root = _ensure_shooting_entries_dir()
-    existing_entries = session.exec(select(ShootingEntry)).all()
-    existing_ids = {entry.id for entry in existing_entries if entry.id is not None}
-    folder_entry_ids = {
-        int(match.group(1))
-        for folder in root.iterdir()
-        if folder.is_dir() and (match := re.match(r"^(\d+)-(.+)$", folder.name))
-    }
-    changed = False
+    with _SHOOTING_ENTRY_FOLDER_SYNC_LOCK:
+        root = _ensure_shooting_entries_dir()
+        existing_entries = session.exec(select(ShootingEntry)).all()
+        existing_ids = {entry.id for entry in existing_entries if entry.id is not None}
+        changed = False
 
-    for folder in sorted(root.iterdir(), key=lambda item: item.name.lower()):
-        if not folder.is_dir():
-            continue
+        for folder in sorted(root.iterdir(), key=lambda item: item.name.lower()):
+            if not folder.is_dir():
+                continue
 
-        match = re.match(r"^(\d+)-(.+)$", folder.name)
-        if match and int(match.group(1)) in existing_ids:
-            continue
+            match = re.match(r"^(\d+)-(.+)$", folder.name)
+            if match and int(match.group(1)) in existing_ids:
+                continue
 
-        title = _folder_title(folder.name)
-        entry = ShootingEntry(title=title)
-        session.add(entry)
-        session.commit()
-        session.refresh(entry)
+            title = _folder_title(folder.name)
+            entry = ShootingEntry(title=title)
+            session.add(entry)
+            session.commit()
+            session.refresh(entry)
 
-        if entry.id is None:
-            continue
+            if entry.id is None:
+                continue
 
-        existing_ids.add(entry.id)
-        target = root / _shooting_entry_folder(entry)
-        if folder != target and not target.exists():
-            folder.rename(target)
-        changed = True
+            existing_ids.add(entry.id)
+            target = root / _shooting_entry_folder(entry)
+            if folder != target and not target.exists():
+                folder.rename(target)
+            changed = True
 
-    for entry in existing_entries:
-        if entry.id is not None and entry.id in existing_ids:
-            _sync_shooting_entry_folder_name(session, entry, create=True)
+        for entry in existing_entries:
+            if entry.id is not None and entry.id in existing_ids:
+                _sync_shooting_entry_folder_name(session, entry, create=True)
 
-    if changed:
-        session.commit()
+        if changed:
+            session.commit()
 
 
 def create_item(session: Session, payload: ItemCreate) -> ItemRead:
@@ -1035,7 +1054,7 @@ def list_shooting_entries(
     page_items = entries[start:end]
 
     return ShootingEntryListResponse(
-        items=[_to_shooting_entry_read(session, entry) for entry in page_items],
+        items=[_to_shooting_entry_list_read(session, entry) for entry in page_items],
         page=page,
         page_size=page_size,
         total=total,
@@ -1139,24 +1158,20 @@ def set_shooting_entry_cover_photo(session: Session, photo_id: int) -> ShootingE
     if photo is None:
         return None
 
-    photos = session.exec(
+    current_cover = session.exec(
         select(ShootingEntryPhoto)
         .where(ShootingEntryPhoto.entry_id == photo.entry_id)
         .order_by(ShootingEntryPhoto.sort_order, ShootingEntryPhoto.created_at, ShootingEntryPhoto.id)
-    ).all()
+        .limit(1)
+    ).first()
+    if current_cover is not None and current_cover.id == photo.id:
+        return _to_shooting_entry_photo_read(photo)
 
-    photo.sort_order = 0
-    _ensure_photo_thumbnail(photo)
-    _ensure_shooting_entry_photo_dominant_color(photo)
+    min_sort_order = session.exec(
+        select(func.min(ShootingEntryPhoto.sort_order)).where(ShootingEntryPhoto.entry_id == photo.entry_id)
+    ).one()
+    photo.sort_order = (min_sort_order if min_sort_order is not None else 0) - 1
     session.add(photo)
-    next_order = 1
-    for item in photos:
-        if item.id == photo.id:
-            continue
-        item.sort_order = next_order
-        next_order += 1
-        session.add(item)
-
     session.commit()
     session.refresh(photo)
     return _to_shooting_entry_photo_read(photo)
