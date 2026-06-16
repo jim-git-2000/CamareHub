@@ -8,6 +8,7 @@ import { QuoteBanner } from "@/components/quote-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Nav } from "@/components/nav";
+import packageInfo from "../../package.json";
 
 type ApiState = "loading" | "online" | "error";
 
@@ -16,6 +17,8 @@ type AppShellProps = {
 };
 
 type ThemeMode = "light" | "dark";
+
+const APP_VERSION = `v${packageInfo.version}`;
 
 function GitHubMark({ className }: { className?: string }) {
   return (
@@ -133,7 +136,10 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex items-center justify-between gap-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold">
               <img src="/camerahub-logo.png" alt="" className="h-7 w-auto shrink-0 rounded-sm object-contain" width={44} height={28} />
-              CameraHub
+              <span>CameraHub</span>
+              <Badge variant="outline" className="h-5 shrink-0 rounded-full px-2 text-[11px] font-medium leading-none text-muted-foreground">
+                {APP_VERSION}
+              </Badge>
             </Link>
             <div className="md:hidden">
               <HeaderActions apiState={apiState} apiMessage={apiMessage} compact theme={theme} onThemeToggle={toggleTheme} />

@@ -1,7 +1,8 @@
 from pathlib import Path
 from urllib.parse import quote
 
-from sqlalchemy import text
+from sqlalchemy import event, text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import settings
@@ -32,10 +33,19 @@ DATABASE_URL = _resolve_sqlite_url(settings.database_url)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False, "uri": True}
+    connect_args={"check_same_thread": False, "uri": True, "timeout": 30}
     if DATABASE_URL.startswith("sqlite")
     else {},
 )
+
+
+if DATABASE_URL.startswith("sqlite"):
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_busy_timeout(dbapi_connection, connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA busy_timeout = 30000")
+        cursor.close()
 
 
 def create_db_and_tables() -> None:
@@ -50,6 +60,7 @@ def _ensure_sqlite_columns() -> None:
         return
 
     with engine.begin() as connection:
+        connection.exec_driver_sql("PRAGMA busy_timeout = 30000")
         shooting_entry_photo_columns = {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(shooting_entry_photos)").fetchall()
         }
@@ -62,22 +73,56 @@ def _ensure_sqlite_columns() -> None:
         if "thumbnail_path" not in photo_columns:
             connection.exec_driver_sql("ALTER TABLE photos ADD COLUMN thumbnail_path VARCHAR")
 
-        connection.exec_driver_sql(
+        _ensure_shooting_entry_photo_unique_index(connection)
+
+
+def _is_sqlite_locked_error(error: OperationalError) -> bool:
+    return "database is locked" in str(error.orig).lower()
+
+
+def _ensure_shooting_entry_photo_unique_index(connection) -> None:
+    try:
+        duplicate_path_count = connection.exec_driver_sql(
             """
-            DELETE FROM shooting_entry_photos
-            WHERE id NOT IN (
-                SELECT MIN(id)
+            SELECT COUNT(*)
+            FROM (
+                SELECT 1
                 FROM shooting_entry_photos
                 GROUP BY entry_id, file_path
+                HAVING COUNT(*) > 1
             )
             """
-        )
+        ).scalar_one()
+        if duplicate_path_count:
+            connection.exec_driver_sql(
+                """
+                DELETE FROM shooting_entry_photos
+                WHERE id NOT IN (
+                    SELECT MIN(id)
+                    FROM shooting_entry_photos
+                    GROUP BY entry_id, file_path
+                )
+                """
+            )
+
+        shooting_entry_photo_indexes = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA index_list(shooting_entry_photos)").fetchall()
+        }
+        if "uq_shooting_entry_photos_entry_file_path" in shooting_entry_photo_indexes:
+            return
+
         connection.exec_driver_sql(
             """
-            CREATE UNIQUE INDEX IF NOT EXISTS uq_shooting_entry_photos_entry_file_path
+            CREATE UNIQUE INDEX uq_shooting_entry_photos_entry_file_path
             ON shooting_entry_photos (entry_id, file_path)
             """
         )
+    except OperationalError as error:
+        if _is_sqlite_locked_error(error):
+            return
+        raise
+    except IntegrityError:
+        return
 
 
 def check_database_connection() -> bool:
