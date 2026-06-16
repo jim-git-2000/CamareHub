@@ -48,3 +48,41 @@ python3 -m compileall backend/app
 cd frontend && node node_modules/typescript/bin/tsc --noEmit
 git diff --check
 ```
+
+## Git release steps
+
+After the version change is committed and the working tree is clean, create and push the release tag:
+
+```bash
+git status --short
+git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json README.md README_zh.md version_change.md
+git commit -m "prepare release x.y.z"
+git tag vx.y.z
+git push origin main
+git push origin vx.y.z
+```
+
+Replace `x.y.z` with the release version, for example `0.2.2`, and use tag format `v0.2.2`.
+
+If the default branch is not `main`, replace `main` with the actual release branch.
+
+## Docker release follow-up
+
+After pushing the tag, wait for the GitHub Actions release workflow to publish images. Then verify the fixed version images exist:
+
+```bash
+docker pull ghcr.io/jim-git-2000/camerahub-backend:x.y.z
+docker pull ghcr.io/jim-git-2000/camerahub-frontend:x.y.z
+```
+
+On the deployment server, set the fixed version and recreate containers:
+
+```env
+CAMERAHUB_VERSION=x.y.z
+```
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose ps
+```
