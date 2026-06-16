@@ -1,6 +1,7 @@
 from datetime import date as Date
 from datetime import datetime, timezone
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -129,6 +130,7 @@ class ShootingEntryItem(SQLModel, table=True):
 
 class ShootingEntryPhoto(SQLModel, table=True):
     __tablename__ = "shooting_entry_photos"
+    __table_args__ = (UniqueConstraint("entry_id", "file_path", name="uq_shooting_entry_photos_entry_file_path"),)
 
     id: int | None = Field(default=None, primary_key=True)
     entry_id: int = Field(foreign_key="shooting_entries.id", index=True)

@@ -2,10 +2,12 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import RLock
 from uuid import uuid4
 
 from PIL import Image
 from sqlalchemy import delete, func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import PROJECT_ROOT
@@ -53,6 +55,7 @@ VALID_SORTS = {
     "purchase_date": Item.purchase_date,
     "-purchase_date": Item.purchase_date.desc(),
 }
+_SHOOTING_ENTRY_PHOTO_SYNC_LOCK = RLock()
 
 
 def _item_order_by(sort: str | None):
@@ -550,45 +553,51 @@ def _sync_shooting_entry_folder_photos(session: Session, entry: ShootingEntry) -
     if entry.id is None:
         return
 
-    folder = _sync_shooting_entry_folder_name(session, entry)
-    if not folder.exists() or not folder.is_dir():
-        return
+    with _SHOOTING_ENTRY_PHOTO_SYNC_LOCK:
+        folder = _sync_shooting_entry_folder_name(session, entry)
+        if not folder.exists() or not folder.is_dir():
+            return
 
-    photos = session.exec(
-        select(ShootingEntryPhoto)
-        .where(ShootingEntryPhoto.entry_id == entry.id)
-    ).all()
-    seen_paths = {
-        relative_path.as_posix()
-        for photo in photos
-        if (relative_path := _upload_relative_path(photo.file_path)) is not None
-    }
-    changed = False
+        photos = session.exec(
+            select(ShootingEntryPhoto)
+            .where(ShootingEntryPhoto.entry_id == entry.id)
+        ).all()
+        seen_paths = {
+            relative_path.as_posix()
+            for photo in photos
+            if (relative_path := _upload_relative_path(photo.file_path)) is not None
+        }
+        changed = False
 
-    for path in sorted(folder.iterdir(), key=lambda item: item.name.lower()):
-        if not path.is_file() or path.suffix.lower().lstrip(".") not in ALLOWED_PHOTO_EXTENSIONS:
-            continue
+        for path in sorted(folder.iterdir(), key=lambda item: item.name.lower()):
+            if not path.is_file() or path.suffix.lower().lstrip(".") not in ALLOWED_PHOTO_EXTENSIONS:
+                continue
 
-        relative_path = Path(SHOOTING_ENTRIES_UPLOAD_DIR) / folder.name / path.name
-        if relative_path.as_posix() in seen_paths:
-            continue
+            relative_path = Path(SHOOTING_ENTRIES_UPLOAD_DIR) / folder.name / path.name
+            relative_path_key = relative_path.as_posix()
+            if relative_path_key in seen_paths:
+                continue
 
-        stat = path.stat()
-        photo = ShootingEntryPhoto(
-            entry_id=entry.id,
-            file_path=_stored_upload_path(relative_path),
-            file_name=path.name,
-            content_type=_photo_content_type(path),
-            file_size=stat.st_size,
-            created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
-        )
-        _ensure_photo_thumbnail(photo)
-        _ensure_shooting_entry_photo_dominant_color(photo)
-        session.add(photo)
-        changed = True
+            stat = path.stat()
+            photo = ShootingEntryPhoto(
+                entry_id=entry.id,
+                file_path=_stored_upload_path(relative_path),
+                file_name=path.name,
+                content_type=_photo_content_type(path),
+                file_size=stat.st_size,
+                created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
+            )
+            _ensure_photo_thumbnail(photo)
+            _ensure_shooting_entry_photo_dominant_color(photo)
+            session.add(photo)
+            seen_paths.add(relative_path_key)
+            changed = True
 
-    if changed:
-        session.commit()
+        if changed:
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
 
 
 def _read_shooting_entry_photos(

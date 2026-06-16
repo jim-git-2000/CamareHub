@@ -62,6 +62,23 @@ def _ensure_sqlite_columns() -> None:
         if "thumbnail_path" not in photo_columns:
             connection.exec_driver_sql("ALTER TABLE photos ADD COLUMN thumbnail_path VARCHAR")
 
+        connection.exec_driver_sql(
+            """
+            DELETE FROM shooting_entry_photos
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM shooting_entry_photos
+                GROUP BY entry_id, file_path
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_shooting_entry_photos_entry_file_path
+            ON shooting_entry_photos (entry_id, file_path)
+            """
+        )
+
 
 def check_database_connection() -> bool:
     with Session(engine) as session:
