@@ -3,6 +3,7 @@ node_modules/
 .venv/
 __pycache__/
 *.pyc
+*.tsbuildinfo
 .env
 data/*.db
 uploads/*

@@ -24,7 +24,7 @@ def _resolve_sqlite_url(database_url: str) -> str:
         db_path = PROJECT_ROOT / db_path
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    sqlite_file_uri = f"file:{quote(db_path.as_posix())}?mode=rwc&nolock=1"
+    sqlite_file_uri = f"file:{quote(db_path.as_posix())}?mode=rwc"
     return f"{prefix}{sqlite_file_uri}&uri=true"
 
 

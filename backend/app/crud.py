@@ -678,8 +678,6 @@ def _delete_shooting_entry_folder(entry: ShootingEntry) -> None:
 
 
 def _sync_shooting_entry_folders(session: Session) -> None:
-    root = _shooting_entries_dir()
-    root_existed = root.exists()
     root = _ensure_shooting_entries_dir()
     existing_entries = session.exec(select(ShootingEntry)).all()
     existing_ids = {entry.id for entry in existing_entries if entry.id is not None}
@@ -689,15 +687,6 @@ def _sync_shooting_entry_folders(session: Session) -> None:
         if folder.is_dir() and (match := re.match(r"^(\d+)-(.+)$", folder.name))
     }
     changed = False
-
-    if root_existed:
-        missing_entries = [entry for entry in existing_entries if entry.id is not None and entry.id not in folder_entry_ids]
-        for entry in missing_entries:
-            session.exec(delete(ShootingEntryItem).where(ShootingEntryItem.entry_id == entry.id))
-            session.exec(delete(ShootingEntryPhoto).where(ShootingEntryPhoto.entry_id == entry.id))
-            session.delete(entry)
-            existing_ids.discard(entry.id)
-            changed = True
 
     for folder in sorted(root.iterdir(), key=lambda item: item.name.lower()):
         if not folder.is_dir():
