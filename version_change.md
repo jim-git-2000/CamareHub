@@ -22,6 +22,9 @@ Replace the current CameraHub version, for example `0.2.2`, with the next releas
   - top-level `"version": "x.y.z"`
   - `packages[""].version`
 
+- `.env.example`
+  - `CAMERAHUB_VERSION=x.y.z`
+
 - `README.md`
   - fixed deployment examples:
     - `CAMERAHUB_VERSION=x.y.z`
@@ -43,7 +46,7 @@ Replace the current CameraHub version, for example `0.2.2`, with the next releas
 After editing, run:
 
 ```bash
-rg -n "old.version|new.version" backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json README.md README_zh.md frontend/src/components/app-shell.tsx
+rg -n "old.version|new.version" backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json .env.example README.md README_zh.md frontend/src/components/app-shell.tsx
 python3 -m compileall backend/app
 cd frontend && node node_modules/typescript/bin/tsc --noEmit
 git diff --check
@@ -55,7 +58,7 @@ After the version change is committed and the working tree is clean, create and 
 
 ```bash
 git status --short
-git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json README.md README_zh.md version_change.md
+git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json .env.example README.md README_zh.md version_change.md
 git commit -m "prepare release x.y.z"
 git tag vx.y.z
 git push origin main

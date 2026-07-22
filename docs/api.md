@@ -1,20 +1,14 @@
 # CameraHub API
 
-默认后端地址：
+本地开发时后端默认地址为 `http://localhost:8000`。业务 API 使用 `/api` 前缀，上传文件通过 `/uploads/...` 提供。Docker 部署由前端同源代理 `/api` 和 `/uploads`，浏览器不需要直连后端容器。
 
-```text
-http://localhost:8000
-```
+删除成功统一返回 `204 No Content`。列表接口的 `page` 默认为 `1`，`page_size` 默认为 `20`、最大为 `100`。
 
-所有业务 API 挂在 `/api` 前缀下。
+## 健康检查
 
-## Health API
+### `GET /api/health`
 
-### GET /api/health
-
-返回后端运行状态。
-
-响应：
+返回后端状态与应用名：
 
 ```json
 {
@@ -23,36 +17,25 @@ http://localhost:8000
 }
 ```
 
-## Items API
+## 器材
 
-### GET /api/items
+### `GET /api/items`
 
-查询器材列表。
+查询参数：
 
-Query 参数：
+- `type`：`camera`、`lens`、`film` 或 `accessory`
+- `brand`：品牌精确筛选
+- `status`：`owned`、`sold` 或 `wishlist`；旧数据中的 `archived` 仍可读取和筛选
+- `mount`：相机或镜头卡口
+- `keyword`：搜索品牌、型号、昵称、序列号和备注
+- `sort`：支持 `created_at`、`updated_at`、`purchase_date`、`brand`、`model` 及各字段前加 `-` 的倒序形式
+- `page`、`page_size`：分页
 
-- `type`: `camera` / `lens` / `film` / `accessory`
-- `brand`: 品牌精确筛选
-- `status`: `owned` / `sold` / `wishlist` / `archived`
-- `mount`: 相机或镜头卡口筛选
-- `keyword`: 搜索品牌、型号、昵称、序列号、备注
-- `sort`: `-created_at`、`created_at`、`brand`、`model` 等
-- `page`: 默认 `1`
-- `page_size`: 默认 `20`，最大 `100`
+### `GET /api/items/{item_id}`
 
-### GET /api/items/{item_id}
+返回器材基础字段及对应的 `camera`、`lens` 或 `film` 扩展对象；不存在时返回 `404`。
 
-查询单个器材详情，包含类型扩展字段：
-
-- `camera`
-- `lens`
-- `film`
-
-不存在时返回 `404`。
-
-### POST /api/items
-
-新增器材。
+### `POST /api/items`
 
 最小请求：
 
@@ -64,61 +47,36 @@ Query 参数：
 }
 ```
 
-相机、镜头、胶片可分别附加 `camera`、`lens`、`film` 对象。
+相机、镜头、胶片可分别附加 `camera`、`lens`、`film` 对象。创建成功返回 `201`。
 
-### PUT /api/items/{item_id}
+### `PUT /api/items/{item_id}`
 
-更新器材。支持更新基础字段和类型扩展字段。
+更新基础字段和类型扩展字段。
 
-### DELETE /api/items/{item_id}
+### `DELETE /api/items/{item_id}`
 
-删除器材。后端会同时删除扩展信息、图片记录、交易记录，并删除图片实际文件。
+删除器材及其扩展数据、交易记录、图片记录和图片文件。
 
-## Photos API
+## 器材图片
 
-### POST /api/items/{item_id}/photos
+### `POST /api/items/{item_id}/photos`
 
-上传器材图片。
+使用 `multipart/form-data`，字段名为 `file`。支持 JPEG、PNG、WebP，单张最大 `10MB`。后端同时生成 WebP 缩略图；成功返回 `201`。
 
-请求类型：`multipart/form-data`
+### `GET /api/items/{item_id}/photos`
 
-字段：
+返回字段包括 `file_path`、`thumbnail_path`、`file_name`、`content_type`、`file_size`、`sort_order`、`created_at`、`url` 和 `thumbnail_url`。
 
-- `file`: 图片文件
+### `DELETE /api/photos/{photo_id}`
 
-限制：
+删除数据库记录、原图和缩略图。
 
-- 支持 `jpg`、`jpeg`、`png`、`webp`
-- 单张最大 `10MB`
+## 交易记录
 
-### GET /api/items/{item_id}/photos
-
-查询器材图片列表。
-
-响应项包含：
-
-- `id`
-- `item_id`
-- `file_name`
-- `content_type`
-- `file_size`
-- `sort_order`
-- `created_at`
-- `url`
-
-### DELETE /api/photos/{photo_id}
-
-删除图片记录和实际图片文件。
-
-## Transactions API
-
-### GET /api/items/{item_id}/transactions
-
-查询器材交易记录。
-
-### POST /api/items/{item_id}/transactions
-
-新增交易记录。
+- `GET /api/items/{item_id}/transactions`：列出器材交易记录
+- `POST /api/items/{item_id}/transactions`：新增交易记录，成功返回 `201`
+- `PUT /api/transactions/{transaction_id}`：更新交易记录
+- `DELETE /api/transactions/{transaction_id}`：删除交易记录
 
 请求示例：
 
@@ -133,46 +91,70 @@ Query 参数：
 }
 ```
 
-支持类型：
+`type` 可使用 `purchase`、`repair`、`sale`、`maintenance` 或 `accessory`。
 
-- `purchase`
-- `repair`
-- `sale`
-- `maintenance`
-- `accessory`
+## 拍摄事项
 
-### PUT /api/transactions/{transaction_id}
+### `GET /api/shooting-entries`
 
-更新交易记录。
+查询参数：
 
-### DELETE /api/transactions/{transaction_id}
+- `keyword`：搜索标题、地点和备注
+- `item_id`：筛选关联指定器材的事项
+- `camera_item_ids`、`lens_item_ids`、`film_item_ids`：逗号分隔的器材 ID
+- `page`、`page_size`：分页
 
-删除交易记录。
+### `GET /api/shooting-entries/{entry_id}`
 
-## Stats API
+返回事项、关联器材 `item_links`、图片 `photos` 和 `photo_count`。
 
-### GET /api/stats/summary
+### `POST /api/shooting-entries`
 
-返回 Dashboard 和统计页基础汇总：
+创建成功返回 `201`。请求示例：
 
-- `total_value`
-- `camera_count`
-- `lens_count`
-- `film_stock`
-- `recent_items`
+```json
+{
+  "title": "周末街拍",
+  "date": "2026-06-06",
+  "location": "Shanghai",
+  "notes": null,
+  "item_links": [
+    {"item_id": 1, "role": "camera"},
+    {"item_id": 2, "role": "lens"}
+  ]
+}
+```
 
-### GET /api/stats/by-brand
+`role` 使用 `camera`、`lens`、`film` 或 `other`。
 
-按品牌统计器材数量和估值。
+- `PUT /api/shooting-entries/{entry_id}`：更新事项及关联器材
+- `DELETE /api/shooting-entries/{entry_id}`：删除事项、关联记录、图片记录和图片文件
 
-### GET /api/stats/by-type
+## 拍摄事项图片
 
-按器材类型统计数量和估值。
+- `POST /api/shooting-entries/{entry_id}/photos`：上传图片，限制与器材图片相同，成功返回 `201`
+- `GET /api/shooting-entries/{entry_id}/photos`：列出图片
+- `PUT /api/shooting-entry-photos/{photo_id}/cover`：把指定图片设为封面
+- `DELETE /api/shooting-entry-photos/{photo_id}`：删除原图、缩略图和记录
 
-### GET /api/stats/lens-focal-length
+图片响应除通用图片字段外还包含 `entry_id` 和 `dominant_color`。同一事项的 `sort_order = 0` 图片为封面。
 
-按镜头焦段统计数量。
+## 摄影一言
 
-### GET /api/stats/film-stock
+- `GET /api/quote-banner`：读取轮换间隔、自定义文本和默认值状态
+- `PUT /api/quote-banner`：写入 `interval_seconds` 和 `quotes`；省略的字段使用内置默认值
+- `DELETE /api/quote-banner`：恢复默认设置
 
-按胶片条目统计库存数量。
+设置保存在 `data/quote_banner.txt`，不写入 SQLite。
+
+## 统计
+
+- `GET /api/stats/summary`：自有器材总估值、相机数、镜头数、胶片库存和最近器材
+- `GET /api/stats/by-brand`：按品牌统计数量和估值
+- `GET /api/stats/by-type`：按器材类型统计数量和估值
+- `GET /api/stats/lens-focal-length`：按镜头焦段统计
+- `GET /api/stats/lens-zoom-type`：按定焦/变焦统计
+- `GET /api/stats/lens-focal-category`：按焦段类别统计
+- `GET /api/stats/film-stock`：按胶片条目统计库存
+
+资产估值只统计 `status = owned` 的器材，并使用 `current_value`。新增器材时若只填写 `purchase_price`，后端会把它同步为初始 `current_value`。

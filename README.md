@@ -116,6 +116,28 @@ uploads/
 docs/
 ```
 
+## Local Development
+
+Requirements: Python 3.12+, uv, Node.js, and npm.
+
+Start the backend:
+
+```bash
+cd backend
+uv sync --frozen
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+In another terminal, start the frontend:
+
+```bash
+cd frontend
+npm ci
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+Open `http://localhost:3010`. Before committing frontend changes, run `npm run lint` and `npm run build`; validate backend syntax with `uv run python -m compileall app`.
+
 ## Docker Compose Deployment
 
 CameraHub can be deployed by pulling prebuilt GHCR images with Docker Compose. The server needs:

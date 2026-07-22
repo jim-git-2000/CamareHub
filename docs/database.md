@@ -1,164 +1,120 @@
 # CameraHub Database
 
-默认数据库：
+默认数据库为 `data/gear.db`。后端使用 SQLite 与 SQLModel：启动时创建缺失表，并为已有数据库补充当前代码明确支持的兼容字段和索引。它不是通用迁移框架，升级前仍应备份数据库与 `uploads/`。
 
-```text
-data/gear.db
-```
+## `items`
 
-数据库使用 SQLite，由 SQLModel 在后端启动时自动创建表。
+所有相机、镜头、胶片和配件的核心表。
 
-## items
+- `id`：主键
+- `type`：`camera`、`lens`、`film` 或 `accessory`
+- `brand`、`model`、`nickname`、`serial_number`
+- `status`：现役表单使用 `owned`、`sold`、`wishlist`；兼容读取旧值 `archived`
+- `purchase_date`、`purchase_price`、`current_value`、`currency`
+- `condition`、`location`、`notes`、`custom_fields`
+- `created_at`、`updated_at`
 
-Item 表说明
+## `cameras`
 
-核心器材表。所有相机、镜头、胶片和配件都先写入 `items`。
+通过 `item_id` 关联 `items.id` 的相机扩展表。
 
-主要字段：
+- `id`、`item_id`
+- `mount`、`format`、`camera_type`、`film_format`
+- `sensor_type`、`megapixels`、`shutter_type`、`metering`
+- `battery_type`、`weight_g`
 
-- `id`: 主键
-- `type`: `camera` / `lens` / `film` / `accessory`
-- `brand`: 品牌
-- `model`: 型号
-- `nickname`: 昵称
-- `serial_number`: 序列号
-- `status`: `owned` / `sold` / `wishlist` / `archived`
-- `purchase_date`: 购买日期
-- `purchase_price`: 购买价格
-- `current_value`: 当前估值
-- `currency`: 币种，默认 `CNY`
-- `condition`: 成色
-- `location`: 存放位置
-- `notes`: 备注
-- `custom_fields`: 自定义字段，当前按字符串保存，可存 JSON
-- `created_at`: 创建时间
-- `updated_at`: 更新时间
+## `lenses`
 
-## cameras
+通过 `item_id` 关联 `items.id` 的镜头扩展表。
 
-Camera 表说明
+- `id`、`item_id`、`mount`
+- `focal_length_min`、`focal_length_max`
+- `aperture_max`、`aperture_min`
+- `filter_size_mm`、`minimum_focus_m`
+- `stabilization`、`autofocus`、`weight_g`
 
-相机扩展表，通过 `item_id` 关联 `items.id`。
+## `films`
 
-主要字段：
+通过 `item_id` 关联 `items.id` 的胶片扩展表。
 
-- `id`: 主键
-- `item_id`: 对应器材 ID
-- `mount`: 卡口
-- `format`: 画幅
-- `camera_type`: 相机类型
-- `film_format`: 胶片规格
-- `sensor_type`: 传感器类型
-- `megapixels`: 像素
-- `shutter_type`: 快门类型
-- `metering`: 测光
-- `battery_type`: 电池类型
-- `weight_g`: 重量，单位 g
+- `id`、`item_id`
+- `iso`、`film_format`、`color_type`、`process`
+- `expiry_date`、`quantity`、`storage_location`
 
-## lenses
+## `photos`
 
-Lens 表说明
+通过 `item_id` 关联器材的图片表。
 
-镜头扩展表，通过 `item_id` 关联 `items.id`。
+- `id`、`item_id`
+- `file_path`：原图相对路径
+- `thumbnail_path`：WebP 缩略图相对路径，可为空；读取时会尝试补齐
+- `file_name`、`content_type`、`file_size`
+- `sort_order`、`created_at`
 
-主要字段：
+## `transactions`
 
-- `id`: 主键
-- `item_id`: 对应器材 ID
-- `mount`: 卡口
-- `focal_length_min`: 最短焦距，单位 mm
-- `focal_length_max`: 最长焦距，单位 mm
-- `aperture_max`: 最大光圈
-- `aperture_min`: 最小光圈
-- `filter_size_mm`: 滤镜口径，单位 mm
-- `minimum_focus_m`: 最近对焦距离，单位 m
-- `stabilization`: 是否防抖
-- `autofocus`: 是否自动对焦
-- `weight_g`: 重量，单位 g
+通过 `item_id` 关联器材的交易记录表。
 
-## films
+- `id`、`item_id`
+- `type`：`purchase`、`repair`、`sale`、`maintenance` 或 `accessory`
+- `amount`、`currency`、`date`、`vendor`、`notes`
+- `created_at`
 
-Film 表说明
+## `shooting_entries`
 
-胶片扩展表，通过 `item_id` 关联 `items.id`。
+拍摄事项主表。
 
-主要字段：
+- `id`、`title`、`date`、`location`、`notes`
+- `created_at`、`updated_at`
 
-- `id`: 主键
-- `item_id`: 对应器材 ID
-- `iso`: ISO
-- `film_format`: 胶片规格，例如 `135`
-- `color_type`: 黑白、彩负等
-- `process`: 冲洗工艺，例如 `C-41` 或 `B&W`
-- `expiry_date`: 有效期
-- `quantity`: 库存数量
-- `storage_location`: 存储位置
+## `shooting_entry_items`
 
-## photos
+拍摄事项与器材的关联表。
 
-Photo 表说明
+- `id`、`entry_id`、`item_id`
+- `role`：`camera`、`lens`、`film` 或 `other`
 
-图片表，通过 `item_id` 关联 `items.id`。
+## `shooting_entry_photos`
 
-主要字段：
+拍摄事项图片表。
 
-- `id`: 主键
-- `item_id`: 对应器材 ID
-- `file_path`: 图片相对路径
-- `file_name`: 原始文件名
-- `content_type`: MIME 类型
-- `file_size`: 文件大小，单位 byte
-- `sort_order`: 排序值
-- `created_at`: 上传时间
+- `id`、`entry_id`
+- `file_path`、`thumbnail_path`
+- `file_name`、`content_type`、`file_size`
+- `dominant_color`：封面主色，格式为十六进制颜色字符串
+- `sort_order`：`0` 表示当前封面
+- `created_at`
 
-实际图片文件默认保存在：
+`entry_id + file_path` 有唯一索引，启动兼容逻辑会先去除同一事项内的重复路径记录，再补索引。
+
+## 文件存储
+
+SQLite 只保存相对路径。文件默认位于：
 
 ```text
 uploads/
+  camera/
+  lens/
+  film/
+  accessory/
+  shooting-entries/
 ```
 
-## transactions
-
-Transaction 表说明
-
-交易记录表，通过 `item_id` 关联 `items.id`。
-
-主要字段：
-
-- `id`: 主键
-- `item_id`: 对应器材 ID
-- `type`: `purchase` / `repair` / `sale` / `maintenance` / `accessory`
-- `amount`: 金额
-- `currency`: 币种，默认 `CNY`
-- `date`: 交易日期
-- `vendor`: 商家、维修点或买家
-- `notes`: 备注
-- `created_at`: 创建时间
+各图片目录下的 `thumbs/` 保存 WebP 缩略图。摄影一言设置单独保存在 `data/quote_banner.txt`。
 
 ## 备份与恢复
 
-备份数据库：
+备份：
 
 ```bash
 mkdir -p backups
 cp data/gear.db backups/gear-$(date +%Y%m%d).db
-```
-
-备份图片：
-
-```bash
-mkdir -p backups
 tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
 ```
 
-恢复数据库：
+恢复前先停止服务，再替换数据库和图片目录：
 
 ```bash
 cp backups/gear-YYYYMMDD.db data/gear.db
-```
-
-恢复图片：
-
-```bash
 tar -xzf backups/uploads-YYYYMMDD.tar.gz
 ```

@@ -116,6 +116,28 @@ uploads/
 docs/
 ```
 
+## 本地开发
+
+需要 Python 3.12+、uv、Node.js 和 npm。
+
+启动后端：
+
+```bash
+cd backend
+uv sync --frozen
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+另开一个终端启动前端：
+
+```bash
+cd frontend
+npm ci
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+访问 `http://localhost:3010`。提交前端改动前运行 `npm run lint` 和 `npm run build`；后端语法校验运行 `uv run python -m compileall app`。
+
 ## Docker Compose 部署
 
 CameraHub 可以通过 Docker Compose 拉取 GHCR 上的预构建镜像完成部署。服务器需要：

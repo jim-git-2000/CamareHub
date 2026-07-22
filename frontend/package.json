@@ -2,12 +2,12 @@
   "name": "camerahub-frontend",
   "version": "0.2.2",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "npm@11.13.0",
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev --webpack --hostname 0.0.0.0 --port 3010",
     "build": "node node_modules/next/dist/bin/next build --webpack",
     "start": "node node_modules/next/dist/bin/next start",
-    "lint": "node node_modules/next/dist/bin/next lint"
+    "lint": "node node_modules/eslint/bin/eslint.js ."
   },
   "dependencies": {
     "@radix-ui/react-dialog": "latest",
