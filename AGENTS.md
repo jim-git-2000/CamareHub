@@ -50,6 +50,9 @@
 - 后端使用 Python 3.12+ 与 uv：`cd backend && uv sync --frozen`，校验用 `uv run python -m compileall app`
 - 前端使用 npm 与 `frontend/package-lock.json`：`cd frontend && npm ci`，校验依次运行 `npm run lint`、`npm run build`
 - 目录职责：`backend/app/` 放后端代码，`frontend/src/` 放前端代码，`data/` 放 SQLite 与一言配置，`uploads/` 放原图和缩略图，`docs/` 只放现役技术文档
+- 数据兼容是不可退让的红线：任何数据库 schema、字段语义、状态值、文件路径或配置格式变更，都必须保证旧版本的 SQLite 数据、`uploads/` 文件和 `data/` 配置可被新版本直接识别并完整使用
+- 兼容迁移必须自动、幂等且可回滚；禁止删除旧字段/旧值、静默丢弃记录、批量覆盖用户数据或要求用户重新录入。确需转换时，必须先备份，再保留旧数据并提供明确回滚路径
+- 涉及持久化数据的改动，必须使用旧版本数据副本验证升级、重复启动和回滚；没有通过兼容验证，不得宣称改动完成或发布新版本
 - 发布版本必须同步 `backend/pyproject.toml`、`backend/uv.lock`、`frontend/package.json`、`frontend/package-lock.json`、`.env.example` 和两份 README；完整步骤见 `version_change.md`
 - 部署使用根目录 `docker-compose.yml` 与 GHCR 镜像；本地 `data/`、`uploads/`、`backups/` 均不得提交
 - `CAMERAHUB_DEVELOPMENT_*.md` 是历史计划，不作为现役实现或命令依据
