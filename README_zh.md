@@ -17,7 +17,7 @@ CameraHub 是一个本地优先的摄影管理系统，当前支持：
 - 相机、镜头、胶片、配件管理
 - 器材图片上传、封面和缩略图展示
 - 拍摄事项与关联图片归档
-- 资产概览与统计图表
+- 资产概览与统计图表（胶片按单卷价格与库存数量计价）
 
 存储方式保持简单：
 
@@ -128,15 +128,44 @@ uv sync --frozen
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+若仓库位于不支持符号链接的共享文件系统（例如 CIFS），请把 uv 的虚拟环境和缓存放到本机磁盘：
+
+```bash
+cd backend
+export UV_PROJECT_ENVIRONMENT=/tmp/camerahub-backend-venv
+export UV_CACHE_DIR=/tmp/camerahub-uv-cache
+uv sync --frozen
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 另开一个终端启动前端：
+
+首次克隆项目、`frontend/package-lock.json` 变更，或 `node_modules` 损坏时，先安装依赖：
 
 ```bash
 cd frontend
 npm ci
+```
+
+日常启动不需要重复运行 `npm ci`，直接执行：
+
+```bash
+cd frontend
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```
 
 访问 `http://localhost:3010`。提交前端改动前运行 `npm run lint` 和 `npm run build`；后端语法校验运行 `uv run python -m compileall app`。
+
+### 局域网访问
+
+后端以 `--host 0.0.0.0` 启动后，前端已监听所有网络接口。若从局域网设备访问服务器 `192.168.32.123`，前端必须使用服务器 IP 作为 API 地址，不能使用 `localhost`，否则浏览器会连接访问设备自身的 `8000` 端口：
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://192.168.32.123:8000 npm run dev
+```
+
+随后在局域网设备访问 `http://192.168.32.123:3010/`。如果页面能打开但没有数据，请停止并按上述命令重启前端。
 
 ## Docker Compose 部署
 
@@ -172,7 +201,7 @@ camerahub/
 如果希望部署可重复、方便回滚，建议使用固定版本：
 
 ```env
-CAMERAHUB_VERSION=0.2.2
+CAMERAHUB_VERSION=0.3.0
 ```
 
 也可以使用 `latest`，但固定版本更适合长期使用：
@@ -267,7 +296,7 @@ docker compose logs -f frontend
 如果需要切换版本，先修改 `.env`：
 
 ```env
-CAMERAHUB_VERSION=0.2.2
+CAMERAHUB_VERSION=0.3.0
 ```
 
 然后重新拉取并创建容器：
@@ -325,7 +354,7 @@ ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
 含义：
 
 - 不设置 `CAMERAHUB_VERSION`：部署 `latest`
-- 设置 `CAMERAHUB_VERSION=0.2.2`：部署正式版本 `0.2.2`
+- 设置 `CAMERAHUB_VERSION=0.3.0`：部署正式版本 `0.3.0`
 
 ## 数据与图片
 

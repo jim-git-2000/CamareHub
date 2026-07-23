@@ -6,7 +6,7 @@ from threading import RLock
 from uuid import uuid4
 
 from PIL import Image
-from sqlalchemy import delete, func, or_
+from sqlalchemy import case, delete, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -60,6 +60,20 @@ _SHOOTING_ENTRY_FOLDER_SYNC_LOCK = RLock()
 
 
 def _item_order_by(sort: str | None):
+    if sort == "catalog":
+        return (
+            case(
+                (Item.type == "camera", 0),
+                (Item.type == "lens", 1),
+                (Item.type == "accessory", 2),
+                (Item.type == "film", 3),
+                else_=4,
+            ),
+            Item.purchase_date.is_(None),
+            Item.purchase_date.desc(),
+            Item.created_at.desc(),
+            Item.id.desc(),
+        )
     if sort == "-purchase_date":
         return (Item.purchase_date.is_(None), Item.purchase_date.desc(), Item.created_at.desc(), Item.id.desc())
     if sort == "purchase_date":
@@ -764,6 +778,7 @@ def list_items(
     brand: str | None = None,
     status: str | None = None,
     mount: str | None = None,
+    camera_type: str | None = None,
     keyword: str | None = None,
     sort: str | None = None,
     page: int = 1,
@@ -790,10 +805,15 @@ def list_items(
                 Item.notes.ilike(pattern),
             )
         )
-    if mount:
-        camera_ids = select(Camera.item_id).where(Camera.mount == mount)
-        lens_ids = select(Lens.item_id).where(Lens.mount == mount)
+    normalized_mount = mount.strip() if mount else ""
+    if normalized_mount:
+        camera_ids = select(Camera.item_id).where(func.trim(Camera.mount) == normalized_mount)
+        lens_ids = select(Lens.item_id).where(func.trim(Lens.mount) == normalized_mount)
         filters.append(or_(Item.id.in_(camera_ids), Item.id.in_(lens_ids)))
+    normalized_camera_type = camera_type.strip() if camera_type else ""
+    if normalized_camera_type:
+        camera_ids = select(Camera.item_id).where(func.trim(Camera.camera_type) == normalized_camera_type)
+        filters.append(Item.id.in_(camera_ids))
 
     for filter_item in filters:
         statement = statement.where(filter_item)

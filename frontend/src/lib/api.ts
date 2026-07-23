@@ -112,6 +112,7 @@ type ListItemsParams = {
   brand?: string;
   status?: string;
   mount?: string;
+  camera_type?: string;
   keyword?: string;
   sort?: string;
   page?: number;

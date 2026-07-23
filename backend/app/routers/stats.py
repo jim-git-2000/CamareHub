@@ -38,9 +38,18 @@ def _item_value(item: Item) -> float:
     return item.current_value or 0
 
 
-def _owned_item_value(item: Item) -> float:
+def _film_quantities_by_item(films: list[Film]) -> dict[int, int]:
+    quantities: dict[int, int] = {}
+    for film in films:
+        quantities[film.item_id] = quantities.get(film.item_id, 0) + _film_quantity(film)
+    return quantities
+
+
+def _owned_item_value(item: Item, film_quantities: dict[int, int]) -> float:
     if item.status != "owned":
         return 0
+    if item.type == "film":
+        return _item_value(item) * film_quantities.get(item.id or -1, 0)
     return _item_value(item)
 
 
@@ -96,10 +105,11 @@ def _range_overlaps(start: float, end: float, lower: float | None, upper: float 
 def summary(session: Session = Depends(get_session)) -> StatsSummaryRead:
     items = session.exec(select(Item)).all()
     films = session.exec(select(Film)).all()
+    film_quantities = _film_quantities_by_item(films)
     recent_items, _ = crud.list_items(session=session, sort="-purchase_date", page=1, page_size=5)
 
     return StatsSummaryRead(
-        total_value=sum(_owned_item_value(item) for item in items),
+        total_value=sum(_owned_item_value(item, film_quantities) for item in items),
         camera_count=sum(1 for item in items if item.type == "camera"),
         lens_count=sum(1 for item in items if item.type == "lens"),
         film_stock=sum(_film_quantity(film) for film in films),
@@ -110,11 +120,12 @@ def summary(session: Session = Depends(get_session)) -> StatsSummaryRead:
 @router.get("/by-brand", response_model=list[StatsBucketRead])
 def by_brand(session: Session = Depends(get_session)) -> list[StatsBucketRead]:
     buckets: dict[str, dict[str, float | int]] = defaultdict(lambda: {"count": 0, "total_value": 0.0})
+    film_quantities = _film_quantities_by_item(session.exec(select(Film)).all())
 
     for item in session.exec(select(Item)).all():
         key = item.brand or "未知品牌"
         buckets[key]["count"] += 1
-        buckets[key]["total_value"] += _owned_item_value(item)
+        buckets[key]["total_value"] += _owned_item_value(item, film_quantities)
 
     return [
         StatsBucketRead(key=brand, label=brand, count=int(data["count"]), total_value=float(data["total_value"]))
@@ -125,10 +136,11 @@ def by_brand(session: Session = Depends(get_session)) -> list[StatsBucketRead]:
 @router.get("/by-type", response_model=list[StatsBucketRead])
 def by_type(session: Session = Depends(get_session)) -> list[StatsBucketRead]:
     buckets: dict[str, dict[str, float | int]] = defaultdict(lambda: {"count": 0, "total_value": 0.0})
+    film_quantities = _film_quantities_by_item(session.exec(select(Film)).all())
 
     for item in session.exec(select(Item)).all():
         buckets[item.type]["count"] += 1
-        buckets[item.type]["total_value"] += _owned_item_value(item)
+        buckets[item.type]["total_value"] += _owned_item_value(item, film_quantities)
 
     return [
         StatsBucketRead(

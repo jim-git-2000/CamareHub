@@ -16,6 +16,8 @@ type ItemFilters = {
   type: string;
   brand: string;
   status: string;
+  mount: string;
+  camera_type: string;
 };
 
 type ItemsState =
@@ -30,7 +32,9 @@ const defaultFilters: ItemFilters = {
   keyword: "",
   type: ALL_VALUE,
   brand: ALL_VALUE,
-  status: ALL_VALUE
+  status: ALL_VALUE,
+  mount: ALL_VALUE,
+  camera_type: ALL_VALUE
 };
 
 const typeOptions = [
@@ -182,7 +186,9 @@ async function fetchAllFilteredItems(filters: ItemFilters): Promise<ItemRead[]> 
     type: filters.type === ALL_VALUE ? undefined : filters.type,
     brand: filters.brand === ALL_VALUE ? undefined : filters.brand,
     status: filters.status === ALL_VALUE ? undefined : filters.status,
-    sort: "-created_at",
+    mount: filters.type === "lens" && filters.mount !== ALL_VALUE ? filters.mount : undefined,
+    camera_type: filters.type === "camera" && filters.camera_type !== ALL_VALUE ? filters.camera_type : undefined,
+    sort: "catalog",
     page: 1,
     page_size: PAGE_SIZE
   };
@@ -199,11 +205,19 @@ async function fetchAllFilteredItems(filters: ItemFilters): Promise<ItemRead[]> 
   return items;
 }
 
-async function fetchBrandOptions(): Promise<string[]> {
-  const items = await fetchAllFilteredItems(defaultFilters);
-  const brands = new Set(items.map((item) => item.brand).filter(Boolean));
+function distinctFieldValues(values: Array<string | null | undefined>): string[] {
+  const options = new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)));
+  return Array.from(options).sort((left, right) => left.localeCompare(right, "zh-CN"));
+}
 
-  return Array.from(brands).sort((left, right) => left.localeCompare(right, "zh-CN"));
+async function fetchFilterOptions(): Promise<{ brands: string[]; lensMounts: string[]; cameraTypes: string[] }> {
+  const items = await fetchAllFilteredItems(defaultFilters);
+
+  return {
+    brands: Array.from(new Set(items.map((item) => item.brand).filter(Boolean))).sort((left, right) => left.localeCompare(right, "zh-CN")),
+    lensMounts: distinctFieldValues(items.filter((item) => item.type === "lens").map((item) => item.lens?.mount)),
+    cameraTypes: distinctFieldValues(items.filter((item) => item.type === "camera").map((item) => item.camera?.camera_type))
+  };
 }
 
 async function fetchThumbnails(items: ItemRead[]): Promise<Record<number, PhotoRead | null>> {
@@ -278,20 +292,26 @@ export default function ItemsPage() {
   const [filters, setFilters] = useState<ItemFilters>(defaultFilters);
   const [state, setState] = useState<ItemsState>({ status: "loading", items: [] });
   const [brands, setBrands] = useState<string[]>([]);
+  const [lensMounts, setLensMounts] = useState<string[]>([]);
+  const [cameraTypes, setCameraTypes] = useState<string[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<number, PhotoRead | null>>({});
 
   useEffect(() => {
     let active = true;
 
-    fetchBrandOptions()
-      .then((nextBrands) => {
+    fetchFilterOptions()
+      .then(({ brands: nextBrands, lensMounts: nextLensMounts, cameraTypes: nextCameraTypes }) => {
         if (active) {
           setBrands(nextBrands);
+          setLensMounts(nextLensMounts);
+          setCameraTypes(nextCameraTypes);
         }
       })
       .catch(() => {
         if (active) {
           setBrands([]);
+          setLensMounts([]);
+          setCameraTypes([]);
         }
       });
 
@@ -339,12 +359,25 @@ export default function ItemsPage() {
       filters.keyword.trim() !== "" ||
       filters.type !== ALL_VALUE ||
       filters.brand !== ALL_VALUE ||
-      filters.status !== ALL_VALUE,
+      filters.status !== ALL_VALUE ||
+      filters.mount !== ALL_VALUE ||
+      filters.camera_type !== ALL_VALUE,
     [filters]
   );
 
   const updateFilter = (key: keyof ItemFilters, value: string) => {
-    setFilters((current) => ({ ...current, [key]: value }));
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "type") {
+        if (value !== "lens") {
+          next.mount = ALL_VALUE;
+        }
+        if (value !== "camera") {
+          next.camera_type = ALL_VALUE;
+        }
+      }
+      return next;
+    });
   };
 
   const clearFilters = () => {
@@ -367,8 +400,8 @@ export default function ItemsPage() {
       </div>
 
       <div className="rounded-lg border bg-background p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_160px_180px_160px_auto]">
-          <div className="relative">
+        <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap">
+          <div className="relative xl:min-w-[220px] xl:flex-1">
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               value={filters.keyword}
@@ -391,8 +424,40 @@ export default function ItemsPage() {
             </SelectContent>
           </Select>
 
+          {filters.type === "lens" ? (
+            <Select value={filters.mount} onValueChange={(value) => updateFilter("mount", value)}>
+              <SelectTrigger aria-label="镜头卡口筛选" className="xl:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_VALUE}>全部卡口</SelectItem>
+                {lensMounts.map((mount) => (
+                  <SelectItem key={mount} value={mount}>
+                    {mount}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          {filters.type === "camera" ? (
+            <Select value={filters.camera_type} onValueChange={(value) => updateFilter("camera_type", value)}>
+              <SelectTrigger aria-label="相机类型筛选" className="xl:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_VALUE}>全部相机类型</SelectItem>
+                {cameraTypes.map((cameraType) => (
+                  <SelectItem key={cameraType} value={cameraType}>
+                    {cameraType}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
           <Select value={filters.brand} onValueChange={(value) => updateFilter("brand", value)}>
-            <SelectTrigger aria-label="品牌筛选">
+            <SelectTrigger aria-label="品牌筛选" className="xl:w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -406,7 +471,7 @@ export default function ItemsPage() {
           </Select>
 
           <Select value={filters.status} onValueChange={(value) => updateFilter("status", value)}>
-            <SelectTrigger aria-label="状态筛选">
+            <SelectTrigger aria-label="状态筛选" className="xl:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -418,7 +483,7 @@ export default function ItemsPage() {
             </SelectContent>
           </Select>
 
-          <Button type="button" variant="outline" onClick={clearFilters} disabled={!hasActiveFilters}>
+          <Button type="button" variant="outline" onClick={clearFilters} disabled={!hasActiveFilters} className="xl:self-start">
             <X className="mr-2 h-4 w-4" aria-hidden="true" />
             清除
           </Button>

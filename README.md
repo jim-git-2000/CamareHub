@@ -17,7 +17,7 @@ CameraHub is a local-first photography management system for:
 - cameras, lenses, film, and accessories
 - item photos and cover images
 - shooting entries and related photos
-- asset summary and statistics
+- asset summary and statistics, including per-roll film valuation
 
 Storage is intentionally simple:
 
@@ -128,15 +128,44 @@ uv sync --frozen
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+If the repository is on a shared filesystem that does not support symbolic links (for example CIFS), keep uv's environment and cache on the local disk instead:
+
+```bash
+cd backend
+export UV_PROJECT_ENVIRONMENT=/tmp/camerahub-backend-venv
+export UV_CACHE_DIR=/tmp/camerahub-uv-cache
+uv sync --frozen
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 In another terminal, start the frontend:
+
+Install dependencies only after a fresh clone, a change to `frontend/package-lock.json`, or damage to `node_modules`:
 
 ```bash
 cd frontend
 npm ci
+```
+
+For normal daily startup, do not run `npm ci` again. Run:
+
+```bash
+cd frontend
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```
 
 Open `http://localhost:3010`. Before committing frontend changes, run `npm run lint` and `npm run build`; validate backend syntax with `uv run python -m compileall app`.
+
+### LAN access
+
+When the backend runs with `--host 0.0.0.0`, the frontend already listens on all network interfaces. To access a server at `192.168.32.123` from another device on the LAN, start the frontend with the server IP as its API base URL. Do not use `localhost`, because the browser would resolve it to the device being used for access:
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://192.168.32.123:8000 npm run dev
+```
+
+Then open `http://192.168.32.123:3010/`. If the page opens but no data loads, stop and restart the frontend with the command above.
 
 ## Docker Compose Deployment
 
@@ -172,7 +201,7 @@ camerahub/
 Use a fixed version when you want repeatable deployment:
 
 ```env
-CAMERAHUB_VERSION=0.2.2
+CAMERAHUB_VERSION=0.3.0
 ```
 
 You can also use `latest`, but a fixed version is easier to roll back:
@@ -267,7 +296,7 @@ docker compose logs -f frontend
 Edit `.env` if you want to switch versions:
 
 ```env
-CAMERAHUB_VERSION=0.2.2
+CAMERAHUB_VERSION=0.3.0
 ```
 
 Then pull and recreate containers:
@@ -325,7 +354,7 @@ ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
 This means:
 
 - no `CAMERAHUB_VERSION` => deploy `latest`
-- `CAMERAHUB_VERSION=0.2.2` => deploy release `0.2.2`
+- `CAMERAHUB_VERSION=0.3.0` => deploy release `0.3.0`
 
 ## Data and Images
 

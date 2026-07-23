@@ -23,6 +23,8 @@
 - `sensor_type`、`megapixels`、`shutter_type`、`metering`
 - `battery_type`、`weight_g`
 
+`camera_type` 是用户自由文本字段。系统不预设、映射或迁移其值；器材页会从现有非空字段值动态生成筛选项。
+
 ## `lenses`
 
 通过 `item_id` 关联 `items.id` 的镜头扩展表。
@@ -40,6 +42,8 @@
 - `id`、`item_id`
 - `iso`、`film_format`、`color_type`、`process`
 - `expiry_date`、`quantity`、`storage_location`
+
+胶片的 `items.purchase_price` 和 `items.current_value` 均表示单卷价格；持有资产统计使用 `current_value * quantity`。空数量按 `0` 处理。
 
 ## `photos`
 

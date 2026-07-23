@@ -48,6 +48,7 @@
 - 定位：基于 Next.js、FastAPI、SQLite 和本地文件存储的自托管摄影器材与拍摄归档系统
 - 现役使用与部署说明以 `README.md`、`README_zh.md` 为准；API 与数据库合同分别以 `docs/api.md`、`docs/database.md` 为准
 - 后端使用 Python 3.12+ 与 uv：`cd backend && uv sync --frozen`，校验用 `uv run python -m compileall app`
+- `backend/tests/` 只放后端回归测试，使用 Python 标准库 `unittest` 与现有依赖；测试文件命名为 `test_<domain>.py`，必须使用内存数据库或 `/tmp` 临时数据库，禁止读写 `data/gear.db`，且每个测试自行建表、造数和清理
 - 前端使用 npm 与 `frontend/package-lock.json`：`cd frontend && npm ci`，校验依次运行 `npm run lint`、`npm run build`
 - 目录职责：`backend/app/` 放后端代码，`frontend/src/` 放前端代码，`data/` 放 SQLite 与一言配置，`uploads/` 放原图和缩略图，`docs/` 只放现役技术文档
 - 数据兼容是不可退让的红线：任何数据库 schema、字段语义、状态值、文件路径或配置格式变更，都必须保证旧版本的 SQLite 数据、`uploads/` 文件和 `data/` 配置可被新版本直接识别并完整使用

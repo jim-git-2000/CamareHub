@@ -425,10 +425,10 @@ export function ItemForm({ mode, initialItem, onSubmit }: ItemFormProps) {
           <Field label="购买日期">
             <Input type="date" value={base.purchase_date} onChange={(event) => setBaseValue("purchase_date", event.target.value)} />
           </Field>
-          <Field label="购买价格">
+          <Field label={base.type === "film" ? "购买价格（单卷）" : "购买价格"}>
             <Input type="number" step="0.01" value={base.purchase_price} onChange={(event) => setPurchasePrice(event.target.value)} />
           </Field>
-          <Field label="当前估值（可选手动调整）">
+          <Field label={base.type === "film" ? "当前估值（单卷，可选手动调整）" : "当前估值（可选手动调整）"}>
             <Input type="number" step="0.01" value={base.current_value} onChange={(event) => setCurrentValue(event.target.value)} />
           </Field>
           <Field label="币种">

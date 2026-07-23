@@ -27,8 +27,9 @@
 - `brand`：品牌精确筛选
 - `status`：`owned`、`sold` 或 `wishlist`；旧数据中的 `archived` 仍可读取和筛选
 - `mount`：相机或镜头卡口
+- `camera_type`：相机类型文本筛选；接受任意非空值，按去除首尾空白后的值精确匹配 `cameras.camera_type`
 - `keyword`：搜索品牌、型号、昵称、序列号和备注
-- `sort`：支持 `created_at`、`updated_at`、`purchase_date`、`brand`、`model` 及各字段前加 `-` 的倒序形式
+- `sort`：支持 `created_at`、`updated_at`、`purchase_date`、`brand`、`model` 及各字段前加 `-` 的倒序形式；`catalog` 按相机、镜头、配件、胶片排序，类内按购买日期从新到旧，空日期置后
 - `page`、`page_size`：分页
 
 ### `GET /api/items/{item_id}`
@@ -157,4 +158,4 @@
 - `GET /api/stats/lens-focal-category`：按焦段类别统计
 - `GET /api/stats/film-stock`：按胶片条目统计库存
 
-资产估值只统计 `status = owned` 的器材，并使用 `current_value`。新增器材时若只填写 `purchase_price`，后端会把它同步为初始 `current_value`。
+资产估值只统计 `status = owned` 的器材，并使用 `current_value`。胶片的 `current_value` 是单卷估值，统计时按 `current_value * quantity` 计算；其他器材按 `current_value` 计算。新增器材时若只填写 `purchase_price`，后端会把它同步为初始 `current_value`。
