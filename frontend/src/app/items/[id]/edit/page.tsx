@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ItemForm } from "@/components/item-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getItem, updateItem } from "@/lib/api";
+import { safeItemListReturnHref, withItemReturnHref } from "@/lib/item-list-route";
 import type { ItemMutationPayload, ItemRead } from "@/types";
 
 type EditState =
@@ -18,6 +19,8 @@ type EditState =
 export default function EditItemPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnHref = safeItemListReturnHref(searchParams.get("from"));
   const itemId = Number(params.id);
   const invalidItemId = !Number.isInteger(itemId) || itemId <= 0;
   const [state, setState] = useState<EditState>({ status: "loading" });
@@ -55,14 +58,14 @@ export default function EditItemPage() {
 
   const handleSubmit = async (payload: ItemMutationPayload) => {
     const item = await updateItem(itemId, payload);
-    router.push(`/items/${item.id}`);
+    router.push(withItemReturnHref(`/items/${item.id}`, returnHref));
   };
 
   if (invalidItemId) {
     return (
       <div className="space-y-6">
         <Button asChild variant="outline">
-          <Link href="/items">
+          <Link href={returnHref}>
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             返回列表
           </Link>
@@ -92,7 +95,7 @@ export default function EditItemPage() {
     return (
       <div className="space-y-6">
         <Button asChild variant="outline">
-          <Link href="/items">
+          <Link href={returnHref}>
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             返回列表
           </Link>
@@ -107,5 +110,12 @@ export default function EditItemPage() {
     );
   }
 
-  return <ItemForm mode="edit" initialItem={state.item} onSubmit={handleSubmit} />;
+  return (
+    <ItemForm
+      mode="edit"
+      initialItem={state.item}
+      cancelHref={withItemReturnHref(`/items/${state.item.id}`, returnHref)}
+      onSubmit={handleSubmit}
+    />
+  );
 }

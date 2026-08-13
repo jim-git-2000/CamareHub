@@ -13,6 +13,7 @@ import type { ItemMutationPayload, ItemRead } from "@/types";
 type ItemFormProps = {
   mode: "create" | "edit";
   initialItem?: ItemRead;
+  cancelHref?: string;
   onSubmit: (payload: ItemMutationPayload) => Promise<void>;
 };
 
@@ -225,7 +226,7 @@ function SelectField({
   );
 }
 
-export function ItemForm({ mode, initialItem, onSubmit }: ItemFormProps) {
+export function ItemForm({ mode, initialItem, cancelHref, onSubmit }: ItemFormProps) {
   const [base, setBase] = useState<BaseValues>(() => defaultBaseValues(initialItem));
   const [camera, setCamera] = useState<CameraValues>(() => defaultCameraValues(initialItem));
   const [lens, setLens] = useState<LensValues>(() => defaultLensValues(initialItem));
@@ -381,7 +382,7 @@ export function ItemForm({ mode, initialItem, onSubmit }: ItemFormProps) {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <Button asChild variant="ghost" className="-ml-4 mb-2">
-            <Link href={initialItem ? `/items/${initialItem.id}` : "/items"}>
+            <Link href={cancelHref ?? (initialItem ? `/items/${initialItem.id}` : "/items")}>
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
               返回
             </Link>

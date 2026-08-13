@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Edit, ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { TransactionFormDialog } from "@/components/transaction-form-dialog";
@@ -28,6 +28,7 @@ import {
   listItemTransactions,
   uploadItemPhoto
 } from "@/lib/api";
+import { safeItemListReturnHref, withItemReturnHref } from "@/lib/item-list-route";
 import type { ItemRead, PhotoRead, TransactionRead } from "@/types";
 
 type DetailState =
@@ -238,6 +239,8 @@ function DetailGrid({ rows }: { rows: DetailRow[] }) {
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnHref = safeItemListReturnHref(searchParams.get("from"));
   const itemId = Number(params.id);
   const invalidItemId = !Number.isInteger(itemId) || itemId <= 0;
   const [state, setState] = useState<DetailState>({ status: "loading" });
@@ -320,7 +323,7 @@ export default function ItemDetailPage() {
     try {
       await deleteItem(itemId);
       setDeleteOpen(false);
-      router.push("/items");
+      router.push(returnHref);
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "删除失败");
     } finally {
@@ -419,7 +422,7 @@ export default function ItemDetailPage() {
     return (
       <div className="space-y-6">
         <Button asChild variant="outline">
-          <Link href="/items">
+          <Link href={returnHref}>
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             返回列表
           </Link>
@@ -449,7 +452,7 @@ export default function ItemDetailPage() {
     return (
       <div className="space-y-6">
         <Button asChild variant="outline">
-          <Link href="/items">
+          <Link href={returnHref}>
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             返回列表
           </Link>
@@ -473,7 +476,7 @@ export default function ItemDetailPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <Button asChild variant="ghost" className="-ml-4 mb-2">
-            <Link href="/items">
+            <Link href={returnHref}>
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
               返回列表
             </Link>
@@ -490,7 +493,7 @@ export default function ItemDetailPage() {
 
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href={`/items/${item.id}/edit`}>
+            <Link href={withItemReturnHref(`/items/${item.id}/edit`, returnHref)}>
               <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
               编辑
             </Link>
