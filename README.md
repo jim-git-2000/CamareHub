@@ -173,14 +173,14 @@ CameraHub can be deployed by pulling prebuilt GHCR images with Docker Compose. T
 
 - Docker
 - Docker Compose plugin
-- a deployment directory with `docker-compose.yml`, `.env`, `data/`, and `uploads/`
+- a deployment directory with `docker-compose.yml`, `.env`, `data/`, `uploads/`, and `backups/`
 
 ### 1. Prepare the deployment directory
 
 Create a dedicated directory on the server:
 
 ```bash
-mkdir -p camerahub/data camerahub/uploads
+mkdir -p camerahub/data camerahub/uploads camerahub/backups
 cd camerahub
 ```
 
@@ -192,9 +192,10 @@ camerahub/
   .env
   data/
   uploads/
+  backups/
 ```
 
-`data/` stores the SQLite database. `uploads/` stores uploaded images. Keep both directories when upgrading.
+`data/` stores the SQLite database and local settings. `uploads/` stores uploaded images. `backups/` stores automatic migration recovery points and operator backups. Keep all three directories when upgrading.
 
 ### 2. Create `.env`
 
@@ -223,10 +224,12 @@ services:
       APP_NAME: CameraHub
       DATABASE_URL: sqlite:////app/data/gear.db
       UPLOAD_DIR: /app/uploads
+      BACKUP_DIR: /app/backups
       BACKEND_CORS_ORIGINS: http://localhost:3010,http://127.0.0.1:3010
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
+      - ./backups:/app/backups
 
   frontend:
     image: ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
@@ -241,7 +244,7 @@ Notes:
 
 - backend is not exposed to the public host by default
 - frontend is exposed on host port `3010`
-- uploaded files and SQLite data stay on the host through mounted volumes
+- uploaded files, SQLite data, local settings, and backups stay on the host through mounted volumes
 - `CAMERAHUB_VERSION` controls which GHCR image version will be pulled
 
 ### 4. Pull and start
@@ -374,32 +377,33 @@ The database stores relative paths. Uploaded files are served through backend `/
 
 ### Backup
 
-Backup database:
+Create and verify one archive containing SQLite, quote settings, and all uploads:
 
 ```bash
-mkdir -p backups
-cp data/gear.db backups/gear-$(date +%Y%m%d).db
-if [ -f data/quote_banner.txt ]; then cp data/quote_banner.txt backups/quote-banner-$(date +%Y%m%d).txt; fi
+cd backend
+uv run python -m app.maintenance backup
 ```
 
-Backup uploads:
+For Docker deployment:
 
 ```bash
-mkdir -p backups
-tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
+docker compose run --rm backend uv run python -m app.maintenance backup
 ```
 
-Restore database:
+The command writes a versioned ZIP archive to `backups/` with a manifest, SQLite schema metadata, file sizes, SHA-256 hashes, and a consistent SQLite snapshot. Verify an archive before moving or restoring it:
 
 ```bash
-cp backups/gear-YYYYMMDD.db data/gear.db
-if [ -f backups/quote-banner-YYYYMMDD.txt ]; then cp backups/quote-banner-YYYYMMDD.txt data/quote_banner.txt; fi
+cd backend
+uv run python -m app.maintenance verify ../backups/camerahub-backup-*.zip
 ```
 
-Restore uploads:
+Restore requires exclusive access. Stop both services first; the restore command creates another verified protection archive before replacing data and automatically rolls back to it if restoration fails:
 
 ```bash
-tar -xzf backups/uploads-YYYYMMDD.tar.gz
+docker compose stop frontend backend
+docker compose run --rm backend uv run python -m app.maintenance restore /app/backups/camerahub-backup-YYYYMMDDTHHMMSSZ-ID.zip
+docker compose up -d
+docker compose ps
 ```
 
 ## Uploads

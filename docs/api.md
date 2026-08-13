@@ -36,6 +36,12 @@
 
 返回器材基础字段及对应的 `camera`、`lens` 或 `film` 扩展对象；不存在时返回 `404`。
 
+器材列表与详情响应还包含可空的 `cover_photo`，提供封面 `url` 和 `thumbnail_url`。旧图片没有缩略图时，`thumbnail_url` 降级为原图 URL，列表读取不会写入或生成文件。
+
+### `GET /api/items/facets`
+
+返回未筛选器材全集的动态筛选选项：`brands`、`lens_mounts` 和 `camera_types`。值会去除首尾空白并去重，不合并大小写或改写数据库记录。
+
 ### `POST /api/items`
 
 最小请求：
@@ -93,6 +99,7 @@
 ```
 
 `type` 可使用 `purchase`、`repair`、`sale`、`maintenance` 或 `accessory`。
+`amount` 可为空；填写时必须大于或等于 `0`。交易记录只作为账本，不会自动修改器材的 `status`、`purchase_price` 或 `current_value`。
 
 ## 拍摄事项
 

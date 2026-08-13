@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -32,7 +33,6 @@ import {
   deleteShootingEntry,
   deleteShootingEntryPhoto,
   getShootingEntry,
-  listItems,
   setShootingEntryCoverPhoto,
   uploadShootingEntryPhoto
 } from "@/lib/api";
@@ -95,8 +95,8 @@ export default function ShootingEntryDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const entryId = Number(params.id);
+  const invalidEntryId = !Number.isInteger(entryId) || entryId <= 0;
   const [state, setState] = useState<DetailState>({ status: "loading" });
-  const [items, setItems] = useState<ItemRead[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -129,12 +129,10 @@ export default function ShootingEntryDetailPage() {
   useEffect(() => {
     let active = true;
 
-    if (!Number.isInteger(entryId) || entryId <= 0) {
-      setState({ status: "error", message: "无效的照片记录 ID" });
+    if (invalidEntryId) {
       return;
     }
 
-    setState({ status: "loading" });
     getShootingEntry(entryId)
       .then((entry) => {
         if (active) {
@@ -155,13 +153,7 @@ export default function ShootingEntryDetailPage() {
     return () => {
       active = false;
     };
-  }, [entryId]);
-
-  useEffect(() => {
-    listItems({ page: 1, page_size: 100, sort: "brand" })
-      .then((response) => setItems(response.items))
-      .catch(() => setItems([]));
-  }, []);
+  }, [entryId, invalidEntryId]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -241,6 +233,25 @@ export default function ShootingEntryDetailPage() {
       setCoveringPhotoId(null);
     }
   };
+
+  if (invalidEntryId) {
+    return (
+      <div className="space-y-6">
+        <Button asChild variant="outline">
+          <Link href="/films">
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            返回照片记录
+          </Link>
+        </Button>
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">无法查看照片记录</CardTitle>
+            <CardDescription>无效的照片记录 ID</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (state.status === "loading") {
     return (
@@ -382,9 +393,12 @@ export default function ShootingEntryDetailPage() {
                   <div key={photo.id} className="overflow-hidden rounded-md border">
                     <a href={originalPhotoSrc(photo)} target="_blank" rel="noreferrer" className="group block">
                       {thumbnail ? (
-                        <img
+                        <Image
                           src={thumbnail}
                           alt={photo.file_name}
+                          width={640}
+                          height={480}
+                          unoptimized
                           className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90"
                         />
                       ) : (
@@ -430,7 +444,6 @@ export default function ShootingEntryDetailPage() {
       <ShootingEntryFormDialog
         open={formOpen}
         entry={entry}
-        items={items}
         onOpenChange={setFormOpen}
         onSaved={loadEntry}
       />

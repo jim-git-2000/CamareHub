@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Edit, ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { TransactionFormDialog } from "@/components/transaction-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,17 +21,24 @@ import {
   API_BASE_URL,
   ApiError,
   deleteItem,
+  deleteItemTransaction,
   deletePhoto,
   getItem,
   listItemPhotos,
+  listItemTransactions,
   uploadItemPhoto
 } from "@/lib/api";
-import type { ItemRead, PhotoRead } from "@/types";
+import type { ItemRead, PhotoRead, TransactionRead } from "@/types";
 
 type DetailState =
   | { status: "loading" }
   | { status: "ready"; item: ItemRead; photos: PhotoRead[] }
   | { status: "error"; message: string };
+
+type TransactionsState =
+  | { status: "loading"; transactions: TransactionRead[] }
+  | { status: "ready"; transactions: TransactionRead[] }
+  | { status: "error"; transactions: TransactionRead[]; message: string };
 
 type DetailRow = {
   label: string;
@@ -59,6 +68,17 @@ function statusLabel(status: string): string {
   };
 
   return labels[status] ?? status;
+}
+
+function transactionTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    purchase: "购买",
+    repair: "维修",
+    sale: "出售",
+    maintenance: "保养",
+    accessory: "配件"
+  };
+  return labels[type] ?? type;
 }
 
 function formatValue(value: DetailRow["value"]): string {
@@ -219,6 +239,7 @@ export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const itemId = Number(params.id);
+  const invalidItemId = !Number.isInteger(itemId) || itemId <= 0;
   const [state, setState] = useState<DetailState>({ status: "loading" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -227,17 +248,19 @@ export default function ItemDetailPage() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<PhotoRead | null>(null);
   const [deletingPhoto, setDeletingPhoto] = useState(false);
+  const [transactionsState, setTransactionsState] = useState<TransactionsState>({ status: "loading", transactions: [] });
+  const [transactionForm, setTransactionForm] = useState<TransactionRead | null | undefined>(undefined);
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionRead | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState(false);
+  const [transactionDeleteError, setTransactionDeleteError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    if (!Number.isInteger(itemId) || itemId <= 0) {
-      setState({ status: "error", message: "无效的器材 ID" });
+    if (invalidItemId) {
       return;
     }
-
-    setState({ status: "loading" });
 
     Promise.all([getItem(itemId), listItemPhotos(itemId)])
       .then(([item, photos]) => {
@@ -261,7 +284,34 @@ export default function ItemDetailPage() {
     return () => {
       active = false;
     };
-  }, [itemId]);
+  }, [invalidItemId, itemId]);
+
+  useEffect(() => {
+    let active = true;
+    if (invalidItemId) {
+      return;
+    }
+
+    listItemTransactions(itemId)
+      .then((transactions) => {
+        if (active) {
+          setTransactionsState({ status: "ready", transactions });
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setTransactionsState({
+            status: "error",
+            transactions: [],
+            message: error instanceof Error ? error.message : "交易记录加载失败"
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [invalidItemId, itemId]);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -332,6 +382,57 @@ export default function ItemDetailPage() {
       setDeletingPhoto(false);
     }
   };
+
+  const refreshTransactions = async () => {
+    setTransactionsState((current) => ({ status: "loading", transactions: current.transactions }));
+    try {
+      const transactions = await listItemTransactions(itemId);
+      setTransactionsState({ status: "ready", transactions });
+    } catch (error) {
+      setTransactionsState({
+        status: "error",
+        transactions: [],
+        message: error instanceof Error ? error.message : "交易记录加载失败"
+      });
+    }
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!transactionToDelete) {
+      return;
+    }
+
+    setDeletingTransaction(true);
+    setTransactionDeleteError(null);
+    try {
+      await deleteItemTransaction(transactionToDelete.id);
+      setTransactionToDelete(null);
+      await refreshTransactions();
+    } catch (error) {
+      setTransactionDeleteError(error instanceof Error ? error.message : "交易记录删除失败");
+    } finally {
+      setDeletingTransaction(false);
+    }
+  };
+
+  if (invalidItemId) {
+    return (
+      <div className="space-y-6">
+        <Button asChild variant="outline">
+          <Link href="/items">
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            返回列表
+          </Link>
+        </Button>
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">无法查看器材详情</CardTitle>
+            <CardDescription>无效的器材 ID</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (state.status === "loading") {
     return (
@@ -431,6 +532,72 @@ export default function ItemDetailPage() {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
+              <CardTitle className="text-base">交易记录</CardTitle>
+              <CardDescription>记录购买、维修、出售、保养和配件支出，不会自动改写器材状态或估值。</CardDescription>
+            </div>
+            <Button type="button" variant="outline" onClick={() => setTransactionForm(null)}>
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              新增交易
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {transactionsState.status === "loading" && transactionsState.transactions.length === 0 ? (
+            <div className="flex min-h-24 items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              正在加载交易记录...
+            </div>
+          ) : null}
+
+          {transactionsState.status === "error" ? (
+            <div className="flex flex-col gap-3 rounded-md border border-destructive/40 px-3 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <span>{transactionsState.message}</span>
+              <Button type="button" variant="outline" size="sm" onClick={refreshTransactions}>
+                重试
+              </Button>
+            </div>
+          ) : null}
+
+          {transactionsState.status === "ready" && transactionsState.transactions.length === 0 ? (
+            <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              暂无交易记录
+            </div>
+          ) : null}
+
+          {transactionsState.transactions.length > 0 ? (
+            <div className="space-y-3">
+              {transactionsState.transactions.map((transaction) => (
+                <div key={transaction.id} className="rounded-md border px-3 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{transactionTypeLabel(transaction.type)}</Badge>
+                        <span className="font-medium">{formatCurrency(transaction.amount, transaction.currency)}</span>
+                        <span className="text-sm text-muted-foreground">{formatDate(transaction.date)}</span>
+                      </div>
+                      {transaction.vendor ? <div className="text-sm">商家 / 对方：{transaction.vendor}</div> : null}
+                      {transaction.notes ? <div className="whitespace-pre-wrap text-sm text-muted-foreground">{transaction.notes}</div> : null}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setTransactionForm(transaction)}>
+                        编辑
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setTransactionToDelete(transaction)}>
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
               <CardTitle className="text-base">图片列表</CardTitle>
               <CardDescription>支持 jpg、jpeg、png、webp，单张最大 10MB</CardDescription>
             </div>
@@ -465,9 +632,12 @@ export default function ItemDetailPage() {
                   <div key={photo.id} className="overflow-hidden rounded-md border">
                     <a href={originalPhotoSrc(photo)} target="_blank" rel="noreferrer" className="group block">
                       {thumbnail ? (
-                        <img
+                        <Image
                           src={thumbnail}
                           alt={photo.file_name}
+                          width={640}
+                          height={480}
+                          unoptimized
                           className="aspect-[4/3] w-full object-cover transition-opacity group-hover:opacity-90"
                         />
                       ) : (
@@ -542,6 +712,39 @@ export default function ItemDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={transactionToDelete !== null} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除交易记录</DialogTitle>
+            <DialogDescription>
+              将删除“{transactionTypeLabel(transactionToDelete?.type ?? "")}”交易记录。此操作不可撤销，但不会修改器材状态或估值。
+            </DialogDescription>
+          </DialogHeader>
+          {transactionDeleteError ? (
+            <div className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">{transactionDeleteError}</div>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setTransactionToDelete(null)} disabled={deletingTransaction}>
+              取消
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDeleteTransaction} disabled={deletingTransaction}>
+              {deletingTransaction ? "删除中..." : "确认删除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {transactionForm !== undefined ? (
+        <TransactionFormDialog
+          key={transactionForm?.id ?? "new"}
+          itemId={item.id}
+          itemCurrency={item.currency}
+          transaction={transactionForm}
+          onOpenChange={(open) => !open && setTransactionForm(undefined)}
+          onSaved={refreshTransactions}
+        />
+      ) : null}
     </div>
   );
 }

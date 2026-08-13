@@ -5,6 +5,7 @@ WORKDIR /app
 ENV APP_NAME=CameraHub \
     DATABASE_URL=sqlite:////app/data/gear.db \
     UPLOAD_DIR=/app/uploads \
+    BACKUP_DIR=/app/backups \
     BACKEND_CORS_ORIGINS=http://localhost:3010,http://127.0.0.1:3010 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

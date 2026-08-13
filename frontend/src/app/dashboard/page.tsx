@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Aperture, CalendarDays, Camera, CircleDollarSign, Film, ImageIcon, MapPin, PackagePlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -146,15 +147,17 @@ async function fetchDashboardSummary(): Promise<DashboardSummary> {
   }
 }
 
-function itemTypeIcon(type: string): typeof CircleDollarSign {
-  const icons: Record<string, typeof CircleDollarSign> = {
-    camera: Camera,
-    lens: Aperture,
-    film: Film,
-    accessory: PackagePlus
-  };
-
-  return icons[type] ?? PackagePlus;
+function ItemTypeIcon({ type, className }: { type: string; className?: string }) {
+  if (type === "camera") {
+    return <Camera className={className} aria-hidden="true" />;
+  }
+  if (type === "lens") {
+    return <Aperture className={className} aria-hidden="true" />;
+  }
+  if (type === "film") {
+    return <Film className={className} aria-hidden="true" />;
+  }
+  return <PackagePlus className={className} aria-hidden="true" />;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -212,7 +215,6 @@ function isEmptySummary(summary: DashboardSummary): boolean {
 }
 
 function RecentItemCard({ item, index }: { item: ItemRead; index: number }) {
-  const Icon = itemTypeIcon(item.type);
   const style = recentItemCardStyles[index % recentItemCardStyles.length];
   const price = readNumber(item.purchase_price, item.current_value);
 
@@ -225,7 +227,7 @@ function RecentItemCard({ item, index }: { item: ItemRead; index: number }) {
         <div className="grid min-h-[120px] gap-0 md:grid-cols-[minmax(0,1fr)_160px]">
           <div className="order-2 flex min-h-[120px] items-start justify-end p-4 md:order-2 md:h-full">
             <div className="rounded-full bg-background/60 p-2 text-current shadow-sm">
-              <Icon className="h-5 w-5" aria-hidden="true" />
+              <ItemTypeIcon type={item.type} className="h-5 w-5" />
             </div>
           </div>
           <div className="order-1 flex min-w-0 flex-col justify-center gap-2 p-4">
@@ -269,7 +271,14 @@ function RecentShootingEntryCard({ entry }: { entry: ShootingEntryRead }) {
                     background: `linear-gradient(90deg, ${colorToCss(color)} 0%, ${colorToCss(color, 0.98)} 22%, ${colorToCss(color, 0.72)} 50%, ${colorToCss(color, 0.28)} 78%, transparent 100%)`
                   }}
                 />
-                <img src={coverUrl} alt={cover?.file_name ?? entry.title} className="h-full w-full object-cover" />
+                <Image
+                  src={coverUrl}
+                  alt={cover?.file_name ?? entry.title}
+                  width={640}
+                  height={480}
+                  unoptimized
+                  className="h-full w-full object-cover"
+                />
               </div>
             ) : (
               <div className="flex h-full min-h-[120px] items-center justify-center" style={{ color: mutedForeground }}>

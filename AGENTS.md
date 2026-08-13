@@ -51,6 +51,7 @@
 - `backend/tests/` 只放后端回归测试，使用 Python 标准库 `unittest` 与现有依赖；测试文件命名为 `test_<domain>.py`，必须使用内存数据库或 `/tmp` 临时数据库，禁止读写 `data/gear.db`，且每个测试自行建表、造数和清理
 - 前端使用 npm 与 `frontend/package-lock.json`：`cd frontend && npm ci`，校验依次运行 `npm run lint`、`npm run build`
 - 目录职责：`backend/app/` 放后端代码，`frontend/src/` 放前端代码，`data/` 放 SQLite 与一言配置，`uploads/` 放原图和缩略图，`docs/` 只放现役技术文档
+- `backend/app/maintenance/` 只放备份、验证、恢复和迁移维护命令；`backend/app/services/` 只放可被启动迁移与维护命令共同复用、且不依赖 HTTP 状态的服务逻辑；业务 API 仍放在 `backend/app/routers/`
 - 数据兼容是不可退让的红线：任何数据库 schema、字段语义、状态值、文件路径或配置格式变更，都必须保证旧版本的 SQLite 数据、`uploads/` 文件和 `data/` 配置可被新版本直接识别并完整使用
 - 兼容迁移必须自动、幂等且可回滚；禁止删除旧字段/旧值、静默丢弃记录、批量覆盖用户数据或要求用户重新录入。确需转换时，必须先备份，再保留旧数据并提供明确回滚路径
 - 涉及持久化数据的改动，必须使用旧版本数据副本验证升级、重复启动和回滚；没有通过兼容验证，不得宣称改动完成或发布新版本

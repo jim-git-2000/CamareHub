@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -16,7 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ShootingEntryFormDialog } from "@/components/shooting-entry-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -40,6 +41,19 @@ type RgbColor = {
   g: number;
   b: number;
 };
+
+const PAGE_SIZE = 24;
+
+async function fetchAllItems(): Promise<ItemRead[]> {
+  const first = await listItems({ page: 1, page_size: 100, sort: "brand" });
+  const items = [...first.items];
+  const pages = Math.ceil(first.total / 100);
+  for (let page = 2; page <= pages; page += 1) {
+    const response = await listItems({ page, page_size: 100, sort: "brand" });
+    items.push(...response.items);
+  }
+  return items;
+}
 
 const fallbackColor: RgbColor = { r: 219, g: 228, b: 219 };
 
@@ -192,9 +206,12 @@ function CoverColorEntryCard({ entry }: { entry: ShootingEntryRead }) {
                     background: `linear-gradient(90deg, ${colorToCss(color)} 0%, ${colorToCss(color, 0.99)} 16%, ${colorToCss(color, 0.82)} 38%, ${colorToCss(color, 0.52)} 62%, ${colorToCss(color, 0.18)} 84%, transparent 100%)`
                   }}
                 />
-                <img
-                  src={coverUrl ?? ""}
+                <Image
+                  src={coverUrl}
                   alt={cover?.file_name ?? entry.title}
+                  width={800}
+                  height={600}
+                  unoptimized
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -259,6 +276,7 @@ export default function FilmsPage() {
   const [lensItemIds, setLensItemIds] = useState<number[]>([]);
   const [filmItemIds, setFilmItemIds] = useState<number[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const itemGroups = useMemo(
     () => ({
@@ -278,7 +296,7 @@ export default function FilmsPage() {
         lens_item_ids: lensItemIds,
         film_item_ids: filmItemIds,
         page: 1,
-        page_size: 100
+        page_size: PAGE_SIZE
       });
       setEntriesState({ status: "ready", entries: response.items, total: response.total });
     } catch (error) {
@@ -292,8 +310,8 @@ export default function FilmsPage() {
   };
 
   useEffect(() => {
-    listItems({ page: 1, page_size: 100, sort: "brand" })
-      .then((response) => setItems(response.items))
+    fetchAllItems()
+      .then(setItems)
       .catch(() => setItems([]));
   }, []);
 
@@ -309,7 +327,7 @@ export default function FilmsPage() {
           lens_item_ids: lensItemIds,
           film_item_ids: filmItemIds,
           page: 1,
-          page_size: 100
+          page_size: PAGE_SIZE
         });
         if (active) {
           setEntriesState({ status: "ready", entries: response.items, total: response.total });
@@ -333,6 +351,29 @@ export default function FilmsPage() {
   }, [cameraItemIds, filmItemIds, keyword, lensItemIds]);
 
   const hasActiveFilters = cameraItemIds.length > 0 || lensItemIds.length > 0 || filmItemIds.length > 0;
+
+  const loadMore = async () => {
+    if (entriesState.status !== "ready" || entriesState.entries.length >= entriesState.total || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = Math.floor(entriesState.entries.length / PAGE_SIZE) + 1;
+      const response = await listShootingEntries({
+        keyword: keyword.trim() || undefined,
+        camera_item_ids: cameraItemIds,
+        lens_item_ids: lensItemIds,
+        film_item_ids: filmItemIds,
+        page,
+        page_size: PAGE_SIZE
+      });
+      setEntriesState((current) => current.status === "ready"
+        ? { status: "ready", entries: [...current.entries, ...response.items], total: response.total }
+        : current);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -417,10 +458,17 @@ export default function FilmsPage() {
         </div>
       ) : null}
 
+      {entriesState.status === "ready" && entriesState.entries.length < entriesState.total ? (
+        <div className="flex justify-center">
+          <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "加载中..." : "加载更多"}
+          </Button>
+        </div>
+      ) : null}
+
       <ShootingEntryFormDialog
         open={formOpen}
         entry={null}
-        items={items}
         onOpenChange={setFormOpen}
         onSaved={loadEntries}
       />

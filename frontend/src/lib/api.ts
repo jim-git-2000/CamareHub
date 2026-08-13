@@ -2,6 +2,7 @@ import type {
   ApiErrorResponse,
   HealthResponse,
   ItemListResponse,
+  ItemFacetsResponse,
   ItemMutationPayload,
   ItemRead,
   FilmStockBucket,
@@ -14,6 +15,7 @@ import type {
   ShootingEntryPhotoRead,
   ShootingEntryRead,
   QuoteBannerSettingsResponse,
+  TransactionMutationPayload,
   TransactionRead
 } from "@/types";
 
@@ -143,6 +145,10 @@ export function listItems(params: ListItemsParams = {}): Promise<ItemListRespons
   return apiRequest<ItemListResponse>(`/api/items${query ? `?${query}` : ""}`);
 }
 
+export function getItemFacets(): Promise<ItemFacetsResponse> {
+  return apiRequest<ItemFacetsResponse>("/api/items/facets");
+}
+
 export function getItem(itemId: number): Promise<ItemRead> {
   return apiRequest<ItemRead>(`/api/items/${itemId}`);
 }
@@ -185,6 +191,30 @@ export function deletePhoto(photoId: number): Promise<void> {
 
 export function listItemTransactions(itemId: number): Promise<TransactionRead[]> {
   return apiRequest<TransactionRead[]>(`/api/items/${itemId}/transactions`);
+}
+
+export function createItemTransaction(
+  itemId: number,
+  payload: TransactionMutationPayload
+): Promise<TransactionRead> {
+  return apiRequest<TransactionRead>(`/api/items/${itemId}/transactions`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateItemTransaction(
+  transactionId: number,
+  payload: TransactionMutationPayload
+): Promise<TransactionRead> {
+  return apiRequest<TransactionRead>(`/api/transactions/${transactionId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteItemTransaction(transactionId: number): Promise<void> {
+  return apiRequest<void>(`/api/transactions/${transactionId}`, { method: "DELETE" });
 }
 
 export function getStatsSummary(): Promise<StatsSummary> {

@@ -83,6 +83,12 @@ export type ItemRead = {
   camera?: CameraRead | null;
   lens?: LensRead | null;
   film?: FilmRead | null;
+  cover_photo?: {
+    id: number;
+    url: string;
+    thumbnail_url?: string | null;
+    file_name: string;
+  } | null;
 };
 
 export type CameraPayload = {
@@ -148,6 +154,12 @@ export type ItemListResponse = {
   total: number;
 };
 
+export type ItemFacetsResponse = {
+  brands: string[];
+  lens_mounts: string[];
+  camera_types: string[];
+};
+
 export type PhotoRead = {
   id: number;
   item_id: number;
@@ -172,6 +184,15 @@ export type TransactionRead = {
   vendor?: string | null;
   notes?: string | null;
   created_at: string;
+};
+
+export type TransactionMutationPayload = {
+  type: string;
+  amount?: number | null;
+  currency: string;
+  date?: string | null;
+  vendor?: string | null;
+  notes?: string | null;
 };
 
 export type StatsSummary = {

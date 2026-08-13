@@ -98,6 +98,13 @@ class FilmRead(FilmBase):
     item_id: int
 
 
+class ItemCoverPhotoRead(SQLModel):
+    id: int
+    url: str
+    thumbnail_url: str | None = None
+    file_name: str
+
+
 class ItemRead(ItemBase):
     id: int
     created_at: datetime
@@ -105,6 +112,7 @@ class ItemRead(ItemBase):
     camera: CameraRead | None = None
     lens: LensRead | None = None
     film: FilmRead | None = None
+    cover_photo: ItemCoverPhotoRead | None = None
 
 
 class ItemListResponse(SQLModel):
@@ -114,9 +122,15 @@ class ItemListResponse(SQLModel):
     total: int
 
 
+class ItemFacetsResponse(SQLModel):
+    brands: list[str]
+    lens_mounts: list[str]
+    camera_types: list[str]
+
+
 class TransactionBase(SQLModel):
     type: str
-    amount: float | None = None
+    amount: float | None = Field(default=None, ge=0)
     currency: str = "CNY"
     date: Date | None = None
     vendor: str | None = None
@@ -129,7 +143,7 @@ class TransactionCreate(TransactionBase):
 
 class TransactionUpdate(SQLModel):
     type: str | None = None
-    amount: float | None = None
+    amount: float | None = Field(default=None, ge=0)
     currency: str | None = None
     date: Date | None = None
     vendor: str | None = None

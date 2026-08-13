@@ -1,10 +1,11 @@
 import unittest
 from datetime import date, datetime, timezone
 
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from app import crud
 from app.models import Camera, Film, Item, Lens
+from app.models import Photo
 
 
 class ItemListingTests(unittest.TestCase):
@@ -81,3 +82,20 @@ class ItemListingTests(unittest.TestCase):
 
         self.assertEqual({item.model for item in items}, {"Old camera"})
         self.assertEqual(unmatched_items, [])
+
+    def test_item_facets_are_trimmed_and_dynamic(self) -> None:
+        facets = crud.item_facets(self.session)
+
+        self.assertEqual(facets["brands"], ["Test"])
+        self.assertEqual(facets["lens_mounts"], ["Leica M"])
+        self.assertEqual(set(facets["camera_types"]), {"微单", "旁轴"})
+
+    def test_item_list_includes_cover_without_generating_files(self) -> None:
+        item = self.session.exec(select(Item).where(Item.model == "New camera")).one()
+        self.session.add(Photo(item_id=item.id, file_path="uploads/camera/original.jpg", file_name="original.jpg"))
+        self.session.commit()
+
+        items, _ = crud.list_items(self.session, keyword="New camera", page_size=10)
+
+        self.assertEqual(items[0].cover_photo.url, "/uploads/camera/original.jpg")
+        self.assertEqual(items[0].cover_photo.thumbnail_url, "/uploads/camera/original.jpg")

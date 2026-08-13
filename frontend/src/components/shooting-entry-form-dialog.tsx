@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createShootingEntry, updateShootingEntry } from "@/lib/api";
+import { createShootingEntry, listItems, updateShootingEntry } from "@/lib/api";
 import type { ItemRead, ShootingEntryItemLink, ShootingEntryRead } from "@/types";
 
 type EntryFormValues = {
@@ -28,6 +28,7 @@ type EntryFormValues = {
 };
 
 const noneValue = "none";
+const searchableItemTypes = ["camera", "lens", "film", "accessory"];
 
 function itemLabel(item: ItemRead): string {
   return `${item.brand} ${item.model}`;
@@ -78,29 +79,100 @@ function toggleNumber(list: number[], value: number): number[] {
 export function ShootingEntryFormDialog({
   open,
   entry,
-  items,
   onOpenChange,
   onSaved
 }: {
   open: boolean;
   entry: ShootingEntryRead | null;
-  items: ItemRead[];
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
   const [values, setValues] = useState<EntryFormValues>(() => defaultFormValues(entry ?? undefined));
+  const [itemQuery, setItemQuery] = useState("");
+  const [searchItems, setSearchItems] = useState<ItemRead[]>([]);
+  const [knownItems, setKnownItems] = useState<ItemRead[]>(() => entry?.item_links.map((link) => link.item) ?? []);
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [itemsError, setItemsError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const groups = useMemo(() => itemGroups(items), [items]);
+  const selectedItemIds = useMemo(
+    () => new Set([
+      ...(values.cameraItemId === noneValue ? [] : [Number(values.cameraItemId)]),
+      ...(values.filmItemId === noneValue ? [] : [Number(values.filmItemId)]),
+      ...values.lensItemIds,
+      ...values.otherItemIds
+    ]),
+    [values.cameraItemId, values.filmItemId, values.lensItemIds, values.otherItemIds]
+  );
+  const selectableItems = useMemo(() => {
+    const merged = new Map(searchItems.map((item) => [item.id, item]));
+    knownItems.forEach((item) => {
+      if (selectedItemIds.has(item.id)) {
+        merged.set(item.id, item);
+      }
+    });
+    return [...merged.values()];
+  }, [knownItems, searchItems, selectedItemIds]);
+  const groups = useMemo(() => itemGroups(selectableItems), [selectableItems]);
 
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setItemsLoading(true);
+      setItemsError(null);
+      try {
+        const responses = await Promise.all(
+          searchableItemTypes.map((type) => listItems({
+            type,
+            keyword: itemQuery.trim() || undefined,
+            page: 1,
+            page_size: 40,
+            sort: "brand"
+          }))
+        );
+        const responseItems = responses.flatMap((response) => response.items);
+        if (active) {
+          setSearchItems(responseItems);
+          setKnownItems((current) => {
+            const merged = new Map(current.map((item) => [item.id, item]));
+            responseItems.forEach((item) => merged.set(item.id, item));
+            return [...merged.values()];
+          });
+        }
+      } catch (error) {
+        if (active) {
+          setItemsError(error instanceof Error ? error.message : "器材加载失败");
+        }
+      } finally {
+        if (active) {
+          setItemsLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [itemQuery, open]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setValues(defaultFormValues(entry ?? undefined));
+      setItemQuery("");
+      setSearchItems([]);
+      setKnownItems(entry?.item_links.map((link) => link.item) ?? []);
+      setItemsLoading(true);
+      setItemsError(null);
       setTitleError(null);
       setSubmitError(null);
     }
-  }, [entry, open]);
+    onOpenChange(nextOpen);
+  };
 
   const setValue = (key: keyof EntryFormValues, value: EntryFormValues[typeof key]) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -133,7 +205,7 @@ export function ShootingEntryFormDialog({
       }
 
       await onSaved();
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "保存失败");
     } finally {
@@ -142,7 +214,7 @@ export function ShootingEntryFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{entry ? "编辑拍摄事项" : "新增拍摄事项"}</DialogTitle>
@@ -169,6 +241,19 @@ export function ShootingEntryFormDialog({
               <span className="text-sm font-medium">备注</span>
               <Textarea value={values.notes} onChange={(event) => setValue("notes", event.target.value)} rows={3} />
             </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium">搜索关联器材</span>
+            <Input
+              value={itemQuery}
+              onChange={(event) => setItemQuery(event.target.value)}
+              placeholder="输入品牌、型号、昵称或序列号"
+            />
+            <p className="text-xs text-muted-foreground">
+              {itemsLoading ? "正在搜索器材..." : "每类显示前 40 条匹配结果，继续输入可缩小范围。"}
+            </p>
+            {itemsError ? <p className="text-xs text-destructive">{itemsError}</p> : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -246,7 +331,7 @@ export function ShootingEntryFormDialog({
           <p className="text-xs text-muted-foreground">关联设备可选，建议至少选择一个相机或镜头。</p>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>
               取消
             </Button>
             <Button type="submit" disabled={saving}>

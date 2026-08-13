@@ -173,14 +173,14 @@ CameraHub 可以通过 Docker Compose 拉取 GHCR 上的预构建镜像完成部
 
 - Docker
 - Docker Compose plugin
-- 一个包含 `docker-compose.yml`、`.env`、`data/` 和 `uploads/` 的部署目录
+- 一个包含 `docker-compose.yml`、`.env`、`data/`、`uploads/` 和 `backups/` 的部署目录
 
 ### 1. 准备部署目录
 
 在服务器上创建独立部署目录：
 
 ```bash
-mkdir -p camerahub/data camerahub/uploads
+mkdir -p camerahub/data camerahub/uploads camerahub/backups
 cd camerahub
 ```
 
@@ -192,9 +192,10 @@ camerahub/
   .env
   data/
   uploads/
+  backups/
 ```
 
-`data/` 保存 SQLite 数据库，`uploads/` 保存上传图片。升级时请保留这两个目录。
+`data/` 保存 SQLite 数据库和本地设置，`uploads/` 保存上传图片，`backups/` 保存自动迁移恢复点和运维备份。升级时请保留这三个目录。
 
 ### 2. 创建 `.env`
 
@@ -223,10 +224,12 @@ services:
       APP_NAME: CameraHub
       DATABASE_URL: sqlite:////app/data/gear.db
       UPLOAD_DIR: /app/uploads
+      BACKUP_DIR: /app/backups
       BACKEND_CORS_ORIGINS: http://localhost:3010,http://127.0.0.1:3010
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
+      - ./backups:/app/backups
 
   frontend:
     image: ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
@@ -241,7 +244,7 @@ services:
 
 - backend 默认不直接暴露到宿主机
 - frontend 默认通过宿主机 `3010` 对外提供访问
-- SQLite 数据和上传图片都保留在宿主机挂载目录中
+- SQLite 数据、本地设置、上传图片和备份都保留在宿主机挂载目录中
 - `CAMERAHUB_VERSION` 用于控制拉取哪个 GHCR 版本
 
 ### 4. 拉取并启动
@@ -374,32 +377,33 @@ uploads/
 
 ### 备份
 
-备份数据库：
+一条命令备份并校验 SQLite、一言配置和全部上传文件：
 
 ```bash
-mkdir -p backups
-cp data/gear.db backups/gear-$(date +%Y%m%d).db
-if [ -f data/quote_banner.txt ]; then cp data/quote_banner.txt backups/quote-banner-$(date +%Y%m%d).txt; fi
+cd backend
+uv run python -m app.maintenance backup
 ```
 
-备份图片：
+Docker 部署执行：
 
 ```bash
-mkdir -p backups
-tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
+docker compose run --rm backend uv run python -m app.maintenance backup
 ```
 
-恢复数据库：
+命令会在 `backups/` 生成带格式版本、SQLite schema 信息、文件清单、字节数、SHA-256 和 SQLite 一致性快照的 ZIP 归档。移动或恢复前可独立校验：
 
 ```bash
-cp backups/gear-YYYYMMDD.db data/gear.db
-if [ -f backups/quote-banner-YYYYMMDD.txt ]; then cp backups/quote-banner-YYYYMMDD.txt data/quote_banner.txt; fi
+cd backend
+uv run python -m app.maintenance verify ../backups/camerahub-backup-*.zip
 ```
 
-恢复图片：
+恢复要求独占数据，必须先停止前后端。恢复命令覆盖数据前会自动再创建一份可验证保护备份；恢复中途失败会自动回滚到该恢复点：
 
 ```bash
-tar -xzf backups/uploads-YYYYMMDD.tar.gz
+docker compose stop frontend backend
+docker compose run --rm backend uv run python -m app.maintenance restore /app/backups/camerahub-backup-YYYYMMDDTHHMMSSZ-ID.zip
+docker compose up -d
+docker compose ps
 ```
 
 ## 上传

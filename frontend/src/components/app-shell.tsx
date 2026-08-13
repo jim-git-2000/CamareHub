@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Moon, Settings, Sun } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { getHealth } from "@/lib/api";
 import { QuoteBanner } from "@/components/quote-banner";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,8 @@ type AppShellProps = {
 type ThemeMode = "light" | "dark";
 
 const APP_VERSION = `v${packageInfo.version}`;
+const THEME_STORAGE_KEY = "camerahub-theme";
+const THEME_CHANGED_EVENT = "camerahub-theme-changed";
 
 function GitHubMark({ className }: { className?: string }) {
   return (
@@ -32,6 +35,27 @@ function applyTheme(theme: ThemeMode) {
   const isDark = theme === "dark";
   document.documentElement.classList.toggle("dark", isDark);
   document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+}
+
+function readTheme(): ThemeMode {
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function subscribeTheme(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(THEME_CHANGED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(THEME_CHANGED_EVENT, onStoreChange);
+  };
+}
+
+function serverThemeSnapshot(): ThemeMode {
+  return "light";
 }
 
 function HeaderActions({
@@ -48,7 +72,6 @@ function HeaderActions({
   onThemeToggle: () => void;
 }) {
   const isDark = theme === "dark";
-  const ThemeIcon = isDark ? Moon : Sun;
 
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -66,7 +89,7 @@ function HeaderActions({
         title={isDark ? "切换到浅色模式" : "切换到深色模式"}
         onClick={onThemeToggle}
       >
-        <ThemeIcon className="h-4 w-4" />
+        {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
         <span className={compact ? "sr-only" : undefined}>{isDark ? "深色" : "浅色"}</span>
       </Button>
       <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 px-2.5">
@@ -85,7 +108,7 @@ function HeaderActions({
 export function AppShell({ children }: AppShellProps) {
   const [apiState, setApiState] = useState<ApiState>("loading");
   const [apiMessage, setApiMessage] = useState("Checking API");
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, serverThemeSnapshot);
 
   useEffect(() => {
     let active = true;
@@ -114,19 +137,14 @@ export function AppShell({ children }: AppShellProps) {
   }, []);
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem("camerahub-theme");
-    const nextTheme = savedTheme === "dark" ? "dark" : "light";
-    setTheme(nextTheme);
-    applyTheme(nextTheme);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((currentTheme) => {
-      const nextTheme = currentTheme === "dark" ? "light" : "dark";
-      window.localStorage.setItem("camerahub-theme", nextTheme);
-      applyTheme(nextTheme);
-      return nextTheme;
-    });
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    applyTheme(nextTheme);
+    window.dispatchEvent(new Event(THEME_CHANGED_EVENT));
   };
 
   return (
@@ -135,7 +153,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className="mx-auto grid max-w-6xl gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1fr)_auto_minmax(260px,1fr)] md:items-center">
           <div className="flex items-center justify-between gap-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold">
-              <img src="/camerahub-logo.png" alt="" className="h-7 w-auto shrink-0 rounded-sm object-contain" width={44} height={28} />
+              <Image src="/camerahub-logo.png" alt="" className="h-7 w-auto shrink-0 rounded-sm object-contain" width={44} height={28} priority />
               <span>CameraHub</span>
               <Badge variant="outline" className="h-5 shrink-0 rounded-full px-2 text-[11px] font-medium leading-none text-muted-foreground">
                 {APP_VERSION}

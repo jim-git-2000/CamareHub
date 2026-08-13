@@ -16,6 +16,7 @@ class Settings:
     app_name: str = os.getenv("APP_NAME", "CameraHub")
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./data/gear.db")
     upload_dir: str = os.getenv("UPLOAD_DIR", "./uploads")
+    backup_dir: str = os.getenv("BACKUP_DIR", "./backups")
     cors_origins: list[str] | None = None
 
     def __post_init__(self) -> None:

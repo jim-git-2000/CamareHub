@@ -19,13 +19,13 @@ export default function EditItemPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const itemId = Number(params.id);
+  const invalidItemId = !Number.isInteger(itemId) || itemId <= 0;
   const [state, setState] = useState<EditState>({ status: "loading" });
 
   useEffect(() => {
     let active = true;
 
-    if (!Number.isInteger(itemId) || itemId <= 0) {
-      setState({ status: "error", message: "无效的器材 ID" });
+    if (invalidItemId) {
       return;
     }
 
@@ -51,12 +51,31 @@ export default function EditItemPage() {
     return () => {
       active = false;
     };
-  }, [itemId]);
+  }, [invalidItemId, itemId]);
 
   const handleSubmit = async (payload: ItemMutationPayload) => {
     const item = await updateItem(itemId, payload);
     router.push(`/items/${item.id}`);
   };
+
+  if (invalidItemId) {
+    return (
+      <div className="space-y-6">
+        <Button asChild variant="outline">
+          <Link href="/items">
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            返回列表
+          </Link>
+        </Button>
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">无法编辑器材</CardTitle>
+            <CardDescription>无效的器材 ID</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (state.status === "loading") {
     return (

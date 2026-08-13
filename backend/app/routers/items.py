@@ -3,7 +3,7 @@ from sqlmodel import Session
 
 from app import crud
 from app.database import get_session
-from app.schemas import ItemCreate, ItemListResponse, ItemRead, ItemUpdate
+from app.schemas import ItemCreate, ItemFacetsResponse, ItemListResponse, ItemRead, ItemUpdate
 
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -35,6 +35,11 @@ def list_items(
         page_size=page_size,
     )
     return ItemListResponse(items=items, page=page, page_size=page_size, total=total)
+
+
+@router.get("/facets", response_model=ItemFacetsResponse)
+def get_item_facets(session: Session = Depends(get_session)) -> ItemFacetsResponse:
+    return ItemFacetsResponse.model_validate(crud.item_facets(session))
 
 
 @router.get("/{item_id}", response_model=ItemRead)

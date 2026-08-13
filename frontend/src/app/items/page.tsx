@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Aperture, Camera, Film, ImageIcon, Package, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { API_BASE_URL, listItemPhotos, listItems } from "@/lib/api";
-import type { ItemRead, PhotoRead } from "@/types";
+import { API_BASE_URL, getItemFacets, listItems } from "@/lib/api";
+import type { ItemRead } from "@/types";
 
 type ItemFilters = {
   keyword: string;
@@ -21,12 +22,12 @@ type ItemFilters = {
 };
 
 type ItemsState =
-  | { status: "loading"; items: ItemRead[] }
-  | { status: "ready"; items: ItemRead[] }
-  | { status: "error"; items: ItemRead[]; message: string };
+  | { status: "loading"; items: ItemRead[]; total: number }
+  | { status: "ready"; items: ItemRead[]; total: number }
+  | { status: "error"; items: ItemRead[]; total: number; message: string };
 
 const ALL_VALUE = "all";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 24;
 
 const defaultFilters: ItemFilters = {
   keyword: "",
@@ -156,23 +157,20 @@ function keyParams(item: ItemRead): string {
   return joinDefined([item.condition, item.location]) || "暂无关键参数";
 }
 
-function itemIcon(type: string) {
+function ItemTypeIcon({ type, className }: { type: string; className?: string }) {
   if (type === "camera") {
-    return Camera;
+    return <Camera className={className} aria-hidden="true" />;
   }
-
   if (type === "lens") {
-    return Aperture;
+    return <Aperture className={className} aria-hidden="true" />;
   }
-
   if (type === "film") {
-    return Film;
+    return <Film className={className} aria-hidden="true" />;
   }
-
-  return Package;
+  return <Package className={className} aria-hidden="true" />;
 }
 
-function photoSrc(photo: PhotoRead | null | undefined): string | null {
+function photoSrc(photo: ItemRead["cover_photo"]): string | null {
   if (!photo?.thumbnail_url) {
     return null;
   }
@@ -180,8 +178,8 @@ function photoSrc(photo: PhotoRead | null | undefined): string | null {
   return photo.thumbnail_url.startsWith("http") ? photo.thumbnail_url : `${API_BASE_URL}${photo.thumbnail_url}`;
 }
 
-async function fetchAllFilteredItems(filters: ItemFilters): Promise<ItemRead[]> {
-  const params = {
+function filteredParams(filters: ItemFilters) {
+  return {
     keyword: filters.keyword.trim() || undefined,
     type: filters.type === ALL_VALUE ? undefined : filters.type,
     brand: filters.brand === ALL_VALUE ? undefined : filters.brand,
@@ -189,62 +187,26 @@ async function fetchAllFilteredItems(filters: ItemFilters): Promise<ItemRead[]> 
     mount: filters.type === "lens" && filters.mount !== ALL_VALUE ? filters.mount : undefined,
     camera_type: filters.type === "camera" && filters.camera_type !== ALL_VALUE ? filters.camera_type : undefined,
     sort: "catalog",
-    page: 1,
     page_size: PAGE_SIZE
   };
-
-  const firstPage = await listItems(params);
-  const items = [...firstPage.items];
-  const totalPages = Math.ceil(firstPage.total / PAGE_SIZE);
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const response = await listItems({ ...params, page });
-    items.push(...response.items);
-  }
-
-  return items;
 }
 
-function distinctFieldValues(values: Array<string | null | undefined>): string[] {
-  const options = new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)));
-  return Array.from(options).sort((left, right) => left.localeCompare(right, "zh-CN"));
-}
-
-async function fetchFilterOptions(): Promise<{ brands: string[]; lensMounts: string[]; cameraTypes: string[] }> {
-  const items = await fetchAllFilteredItems(defaultFilters);
-
-  return {
-    brands: Array.from(new Set(items.map((item) => item.brand).filter(Boolean))).sort((left, right) => left.localeCompare(right, "zh-CN")),
-    lensMounts: distinctFieldValues(items.filter((item) => item.type === "lens").map((item) => item.lens?.mount)),
-    cameraTypes: distinctFieldValues(items.filter((item) => item.type === "camera").map((item) => item.camera?.camera_type))
-  };
-}
-
-async function fetchThumbnails(items: ItemRead[]): Promise<Record<number, PhotoRead | null>> {
-  const entries = await Promise.all(
-    items.map(async (item) => {
-      try {
-        const photos = await listItemPhotos(item.id);
-        return [item.id, photos[0] ?? null] as const;
-      } catch {
-        return [item.id, null] as const;
-      }
-    })
-  );
-
-  return Object.fromEntries(entries);
-}
-
-function ItemCard({ item, photo }: { item: ItemRead; photo?: PhotoRead | null }) {
-  const Icon = itemIcon(item.type);
-  const thumbnail = photoSrc(photo);
+function ItemCard({ item }: { item: ItemRead }) {
+  const thumbnail = photoSrc(item.cover_photo);
 
   return (
     <Link href={`/items/${item.id}`} className="group block h-full min-w-0 max-w-full">
       <Card className="relative h-full w-full min-w-0 overflow-hidden transition-[border-color,box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-lg">
         <div className="aspect-video bg-muted">
           {thumbnail ? (
-            <img src={thumbnail} alt={`${item.brand} ${item.model}`} className="h-full w-full object-cover" />
+            <Image
+              src={thumbnail}
+              alt={`${item.brand} ${item.model}`}
+              width={640}
+              height={360}
+              unoptimized
+              className="h-full w-full object-cover"
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-md border bg-background text-muted-foreground">
@@ -261,7 +223,7 @@ function ItemCard({ item, photo }: { item: ItemRead; photo?: PhotoRead | null })
                 <div className="truncate text-sm text-muted-foreground">{item.brand}</div>
                 <h2 className="mt-1 truncate text-[15px] font-semibold tracking-normal">{item.model}</h2>
               </div>
-              <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <ItemTypeIcon type={item.type} className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" />
             </div>
 
             <div className="mt-2.5 flex flex-wrap gap-2">
@@ -290,21 +252,21 @@ function ItemCard({ item, photo }: { item: ItemRead; photo?: PhotoRead | null })
 
 export default function ItemsPage() {
   const [filters, setFilters] = useState<ItemFilters>(defaultFilters);
-  const [state, setState] = useState<ItemsState>({ status: "loading", items: [] });
+  const [state, setState] = useState<ItemsState>({ status: "loading", items: [], total: 0 });
   const [brands, setBrands] = useState<string[]>([]);
   const [lensMounts, setLensMounts] = useState<string[]>([]);
   const [cameraTypes, setCameraTypes] = useState<string[]>([]);
-  const [thumbnails, setThumbnails] = useState<Record<number, PhotoRead | null>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let active = true;
 
-    fetchFilterOptions()
-      .then(({ brands: nextBrands, lensMounts: nextLensMounts, cameraTypes: nextCameraTypes }) => {
+    getItemFacets()
+      .then((facets) => {
         if (active) {
-          setBrands(nextBrands);
-          setLensMounts(nextLensMounts);
-          setCameraTypes(nextCameraTypes);
+          setBrands(facets.brands);
+          setLensMounts(facets.lens_mounts);
+          setCameraTypes(facets.camera_types);
         }
       })
       .catch(() => {
@@ -323,28 +285,22 @@ export default function ItemsPage() {
   useEffect(() => {
     let active = true;
 
-    setState((current) => ({ status: "loading", items: current.items }));
-
-    fetchAllFilteredItems(filters)
-      .then(async (items) => {
-        const nextThumbnails = await fetchThumbnails(items);
-
+    listItems({ ...filteredParams(filters), page: 1 })
+      .then((response) => {
         if (!active) {
           return;
         }
-
-        setThumbnails(nextThumbnails);
-        setState({ status: "ready", items });
+        setState({ status: "ready", items: response.items, total: response.total });
       })
       .catch((error: unknown) => {
         if (!active) {
           return;
         }
 
-        setThumbnails({});
         setState({
           status: "error",
           items: [],
+          total: 0,
           message: error instanceof Error ? error.message : "器材加载失败"
         });
       });
@@ -382,6 +338,22 @@ export default function ItemsPage() {
 
   const clearFilters = () => {
     setFilters(defaultFilters);
+  };
+
+  const loadMore = async () => {
+    if (state.status !== "ready" || state.items.length >= state.total || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = Math.floor(state.items.length / PAGE_SIZE) + 1;
+      const response = await listItems({ ...filteredParams(filters), page });
+      setState((current) => current.status === "ready"
+        ? { status: "ready", items: [...current.items, ...response.items], total: response.total }
+        : current);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   return (
@@ -495,7 +467,7 @@ export default function ItemsPage() {
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-        <span>{state.status === "loading" ? "正在加载器材..." : `共 ${state.items.length} 件器材`}</span>
+        <span>{state.status === "loading" ? "正在加载器材..." : `已显示 ${state.items.length} / ${state.total} 件器材`}</span>
       </div>
 
       {state.status === "loading" && state.items.length === 0 ? (
@@ -529,8 +501,16 @@ export default function ItemsPage() {
       {state.items.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {state.items.map((item) => (
-            <ItemCard key={item.id} item={item} photo={thumbnails[item.id]} />
+            <ItemCard key={item.id} item={item} />
           ))}
+        </div>
+      ) : null}
+
+      {state.status === "ready" && state.items.length < state.total ? (
+        <div className="flex justify-center">
+          <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "加载中..." : "加载更多"}
+          </Button>
         </div>
       ) : null}
     </div>

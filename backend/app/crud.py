@@ -548,7 +548,35 @@ def _to_item_read(session: Session, item: Item) -> ItemRead:
     data["camera"] = extension if isinstance(extension, Camera) else None
     data["lens"] = extension if isinstance(extension, Lens) else None
     data["film"] = extension if isinstance(extension, Film) else None
+    cover = session.exec(
+        select(Photo).where(Photo.item_id == item.id).order_by(Photo.sort_order, Photo.created_at, Photo.id).limit(1)
+    ).first()
+    data["cover_photo"] = (
+        {
+            "id": cover.id,
+            "url": _photo_url(cover),
+            "thumbnail_url": _photo_thumbnail_url(cover) or _photo_url(cover),
+            "file_name": cover.file_name,
+        }
+        if cover is not None
+        else None
+    )
     return ItemRead.model_validate(data)
+
+
+def item_facets(session: Session) -> dict[str, list[str]]:
+    brands = session.exec(select(Item.brand).distinct()).all()
+    lens_mounts = session.exec(select(Lens.mount).where(Lens.mount.is_not(None)).distinct()).all()
+    camera_types = session.exec(select(Camera.camera_type).where(Camera.camera_type.is_not(None)).distinct()).all()
+
+    def normalized(values: list[str | None]) -> list[str]:
+        return sorted({value.strip() for value in values if value and value.strip()}, key=lambda value: value.casefold())
+
+    return {
+        "brands": normalized(brands),
+        "lens_mounts": normalized(lens_mounts),
+        "camera_types": normalized(camera_types),
+    }
 
 
 def _read_shooting_entry_items(session: Session, entry_id: int) -> list[ShootingEntryItemLinkRead]:
