@@ -47,8 +47,15 @@ After editing, run:
 
 ```bash
 rg -n "old.version|new.version" backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json .env.example README.md README_zh.md frontend/src/components/app-shell.tsx
-python3 -m compileall backend/app
-cd frontend && node node_modules/typescript/bin/tsc --noEmit
+cd backend
+uv sync --frozen
+uv run python -m compileall app
+uv run python -m unittest discover -s tests -v
+cd ../frontend
+npm ci
+npm run lint
+npm run build
+cd ..
 git diff --check
 ```
 
@@ -59,7 +66,7 @@ After the version change is committed and the working tree is clean, create and 
 ```bash
 git status --short
 git add backend/pyproject.toml backend/uv.lock frontend/package.json frontend/package-lock.json .env.example README.md README_zh.md version_change.md
-git commit -m "prepare release x.y.z"
+git commit -m "准备发布 x.y.z"
 git tag vx.y.z
 git push origin main
 git push origin vx.y.z

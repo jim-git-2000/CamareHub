@@ -146,7 +146,7 @@
 - `PUT /api/quote-banner`：写入 `interval_seconds` 和 `quotes`；省略的字段使用内置默认值
 - `DELETE /api/quote-banner`：恢复默认设置
 
-设置保存在 `data/quote_banner.txt`，不写入 SQLite。
+设置保存在本地运行数据 `data/quote_banner.txt`，不写入 SQLite，也不纳入 Git；文件不存在时使用代码内置默认值。
 
 ## 统计
 

@@ -379,6 +379,7 @@ uploads/
 ```bash
 mkdir -p backups
 cp data/gear.db backups/gear-$(date +%Y%m%d).db
+if [ -f data/quote_banner.txt ]; then cp data/quote_banner.txt backups/quote-banner-$(date +%Y%m%d).txt; fi
 ```
 
 备份图片：
@@ -392,6 +393,7 @@ tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
 
 ```bash
 cp backups/gear-YYYYMMDD.db data/gear.db
+if [ -f backups/quote-banner-YYYYMMDD.txt ]; then cp backups/quote-banner-YYYYMMDD.txt data/quote_banner.txt; fi
 ```
 
 恢复图片：

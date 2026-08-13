@@ -379,6 +379,7 @@ Backup database:
 ```bash
 mkdir -p backups
 cp data/gear.db backups/gear-$(date +%Y%m%d).db
+if [ -f data/quote_banner.txt ]; then cp data/quote_banner.txt backups/quote-banner-$(date +%Y%m%d).txt; fi
 ```
 
 Backup uploads:
@@ -392,6 +393,7 @@ Restore database:
 
 ```bash
 cp backups/gear-YYYYMMDD.db data/gear.db
+if [ -f backups/quote-banner-YYYYMMDD.txt ]; then cp backups/quote-banner-YYYYMMDD.txt data/quote_banner.txt; fi
 ```
 
 Restore uploads:

@@ -104,7 +104,7 @@ uploads/
   shooting-entries/
 ```
 
-各图片目录下的 `thumbs/` 保存 WebP 缩略图。摄影一言设置单独保存在 `data/quote_banner.txt`。
+各图片目录下的 `thumbs/` 保存 WebP 缩略图。摄影一言设置单独保存在本地运行数据 `data/quote_banner.txt`；该文件不纳入 Git，备份或迁移时应与数据库一起保留。
 
 ## 备份与恢复
 
@@ -113,6 +113,7 @@ uploads/
 ```bash
 mkdir -p backups
 cp data/gear.db backups/gear-$(date +%Y%m%d).db
+if [ -f data/quote_banner.txt ]; then cp data/quote_banner.txt backups/quote-banner-$(date +%Y%m%d).txt; fi
 tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
 ```
 
@@ -120,5 +121,6 @@ tar -czf backups/uploads-$(date +%Y%m%d).tar.gz uploads/
 
 ```bash
 cp backups/gear-YYYYMMDD.db data/gear.db
+if [ -f backups/quote-banner-YYYYMMDD.txt ]; then cp backups/quote-banner-YYYYMMDD.txt data/quote_banner.txt; fi
 tar -xzf backups/uploads-YYYYMMDD.tar.gz
 ```
