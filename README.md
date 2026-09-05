@@ -202,7 +202,7 @@ camerahub/
 Use a fixed version when you want repeatable deployment:
 
 ```env
-CAMERAHUB_VERSION=0.3.0
+CAMERAHUB_VERSION=0.4.0
 ```
 
 You can also use `latest`, but a fixed version is easier to roll back:
@@ -299,7 +299,7 @@ docker compose logs -f frontend
 Edit `.env` if you want to switch versions:
 
 ```env
-CAMERAHUB_VERSION=0.3.0
+CAMERAHUB_VERSION=0.4.0
 ```
 
 Then pull and recreate containers:
@@ -357,7 +357,7 @@ ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
 This means:
 
 - no `CAMERAHUB_VERSION` => deploy `latest`
-- `CAMERAHUB_VERSION=0.3.0` => deploy release `0.3.0`
+- `CAMERAHUB_VERSION=0.4.0` => deploy release `0.4.0`
 
 ## Data and Images
 

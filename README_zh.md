@@ -202,7 +202,7 @@ camerahub/
 如果希望部署可重复、方便回滚，建议使用固定版本：
 
 ```env
-CAMERAHUB_VERSION=0.3.0
+CAMERAHUB_VERSION=0.4.0
 ```
 
 也可以使用 `latest`，但固定版本更适合长期使用：
@@ -299,7 +299,7 @@ docker compose logs -f frontend
 如果需要切换版本，先修改 `.env`：
 
 ```env
-CAMERAHUB_VERSION=0.3.0
+CAMERAHUB_VERSION=0.4.0
 ```
 
 然后重新拉取并创建容器：
@@ -357,7 +357,7 @@ ghcr.io/jim-git-2000/camerahub-frontend:${CAMERAHUB_VERSION:-latest}
 含义：
 
 - 不设置 `CAMERAHUB_VERSION`：部署 `latest`
-- 设置 `CAMERAHUB_VERSION=0.3.0`：部署正式版本 `0.3.0`
+- 设置 `CAMERAHUB_VERSION=0.4.0`：部署正式版本 `0.4.0`
 
 ## 数据与图片
 
